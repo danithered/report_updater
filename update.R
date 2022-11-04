@@ -58,3 +58,5 @@ for(jr in 1:nrow(jobs)){
                       output_file = "index.html")
   })
 }
+
+saveRDS(list(wheretolook, jobs, last_updated = Sys.time()), "data.Rds")
