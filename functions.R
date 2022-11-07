@@ -36,6 +36,9 @@ get_mtime <- Vectorize(function(target, path="~/", ssh=NA, ssh_key="~/.ssh/id_rs
   })
 })
 
+sshready_adr <- function(orig){
+  unlist(lapply(strsplit(orig, ":"), function(x) paste(x, collapse=" -p ")))
+}
 
 get_file <- function(target, path="~/", ssh=NA, ssh_key="~/.ssh/id_rsa", fast=T, to=NA){
   if(is.na(ssh)){

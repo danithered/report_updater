@@ -1,3 +1,2 @@
 dir	ssh	ssh_key
-/home/danielred/data/programs/mcrs_to_scm/OUT/		
-/home/danielred/data/work/projects/mcrs_scm/OUT/		
+/home/danielred/data/programs/mcrs_scm/OUT/	danielred@148.6.202.1:22023	/home/danielred/.ssh/id_rsa
