@@ -43,12 +43,12 @@ knitr::opts_chunk$set(echo = F, cache.path=params$cache.path, cache.lazy = FALSE
 library(RColorBrewer)
 library(ggplot2)
 library(tidyr)
-library(gganimate)
+#library(gganimate)
 library(lattice)
 library(scales)
 library(knitr)
-library(Polychrome)
-library(cowplot)
+#library(Polychrome)
+#library(cowplot)
 library(dplyr)
 
 par.orig <- par(no.readonly = T) # save default parameters
