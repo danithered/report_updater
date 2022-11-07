@@ -1,3 +1,5 @@
+library(ssh)
+
 #### functions ####
 get_mtime <- Vectorize(function(target, path="~/", ssh=NA, ssh_key="~/.ssh/id_rsa"){
   file = paste(path, 
@@ -166,6 +168,7 @@ getjobs <- function(dirs){
   
   lapply(1:nrow(dirs), function(r) {
     dir = dirs[r,]
+    if( is.na(dir$ssh_key) ) dir$ssh_key = "~/.ssh/id_rsa"
     # check and get file
     #browser()
     f <- get_file("updset.R", path=dir$dir, ssh=dir$ssh, ssh_key = dir$ssh_key, fast=F)
