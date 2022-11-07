@@ -63,7 +63,7 @@ for(jr in 1:nrow(jobs)){
   # try to get parameters
   pf <- get_file("parameters.tsv", job$targetdir)
   if(!is.na(pf)){
-    datas[[jobs$targetdir]] <- read.table(pf, sep="\t", header=F)
+    datas[[job$targetdir]] <- read.table(pf, sep="\t", header=F)
     if(!is.na(job$ssh)) file.remove(pf)
   }
 }
