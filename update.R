@@ -61,11 +61,11 @@ for(jr in 1:nrow(jobs)){
   })
   
   # try to get parameters
-  pf <- get_file("parameters.tsv", job$targetdir, ssh=job$ssh, ssh_key = job$ssh_key)
+  pf <- get_file("parameters.tsv", job$targetdir)
   if(!is.na(pf)){
     datas[[jobs$targetdir]] <- read.table(pf, sep="\t", header=F)
     if(!is.na(job$ssh)) file.remove(pf)
   }
 }
 
-saveRDS(list(wheretolook, jobs, last_updated = Sys.time()), "data.Rds")
+saveRDS(list(wheretolook, jobs, datas, last_updated = Sys.time()), "data.Rds")
