@@ -3,6 +3,7 @@ source("functions.R")
 #setwd("/home/danielred/data/programs/report_updater/")
 wheretolook <- read.table("imports.tsv", sep="\t", header=T) 
 jobs <- getjobs(wheretolook) |> do.call(what=rbind)
+datas <- list()
 
 for(jr in 1:nrow(jobs)){
   job <- jobs[jr, ]
@@ -36,6 +37,14 @@ for(jr in 1:nrow(jobs)){
   }, error = function(e) {next})
   
   #try to compile report
+  wheretocache = paste(job$targetdir, 
+                  "report_cache", 
+                  sep=ifelse(nchar(job$targetdir) > 0 & 
+                               substr(job$targetdir, 
+                                      nchar(job$targetdir), 
+                                      nchar(job$targetdir)) != "/",
+                             "/",
+                             ""))
   try({
     rmarkdown::render(paste0("reports/", job$report),
                       params = list(
@@ -43,20 +52,20 @@ for(jr in 1:nrow(jobs)){
                         ssh = job$ssh,
                         ssh_key = job$ssh_key,
                         force=F,
-                        cache.path= paste(job$targetdir, 
-                                          "report_cache", 
-                                          sep=ifelse(nchar(job$targetdir) > 0 & 
-                                                           substr(job$targetdir, 
-                                                                  nchar(job$targetdir), 
-                                                                  nchar(job$targetdir)) != "/",
-                                                         "/",
-                                                         ""))
+                        cache.path= wheretocache
                       ),
                       output_dir = job$targetdir,
                       knit_root_dir = job$targetdir,
                       intermediates_dir = job$targetdir,
                       output_file = "index.html")
   })
+  
+  # try to get parameters
+  pf <- get_file("parameters.tsv", job$targetdir, ssh=job$ssh, ssh_key = job$ssh_key)
+  if(!is.na(pf)){
+    datas[[jobs$targetdir]] <- read.table(pf, sep="\t", header=F)
+    if(!is.na(job$ssh)) file.remove(pf)
+  }
 }
 
 saveRDS(list(wheretolook, jobs, last_updated = Sys.time()), "data.Rds")

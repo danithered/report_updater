@@ -234,6 +234,34 @@ get_cached_files <- function(needed_files, path="./", ssh=NA, ssh_key="~/.ssh/id
 }
 ```
 
+# simulation properties
+
+```{r get_params, cache=T}
+pf <- get_file("SAVE/parameters.txt", params$dir, ssh=params$ssh, ssh_key = params$ssh_key)
+  if(!is.na(pf)){
+    t <- readLines(pf)
+    t <- read.table( text = sub(" ", "\t", t) , header=F, sep="\t")
+    
+    if(!is.na(params$ssh)) file.remove(pf)
+    
+    write.table(t, file="parameters.tsv", sep="\t", col.names = F, row.names = F)
+    
+    p <- as.list(as.character(t$V2))
+    names(p) <- t$V1
+  }
+```
+
+
+Simulation ID: **`r p$par_ID`**
+
+Parameters:
+
+```{r output_paramtable, cache=T, dependson="get_params"}
+knitr::kable(unlist(p))
+```
+
+# Figures
+
 ```{r check_table}
 # needed_file: the file I want to check if it has changed
 # table: the data from needed_file
@@ -285,7 +313,7 @@ table_A <- xfun::cache_rds({
 
 
 
-# Properties of enzyme types
+## Properties of enzyme types
 
 ```{r plot_everything, eval=output_refreshed, fig.show='hide'}
 ggplot(table_long, aes(x=time, y=val))+
@@ -296,7 +324,7 @@ ggplot(table_long, aes(x=time, y=val))+
 
 ![](`r knitr::fig_chunk('plot_everything', 'png')`)
 
-# Cell diagnostics
+## Cell diagnostics
 
 ```{r, echo=F, eval=F}
 ggplot(table, aes(x=time, y=no_alive, color=replicators))+
@@ -312,7 +340,7 @@ ggplot(table, aes(x=time, y=mean_M ))+
 
 ![](`r knitr::fig_chunk('plot_M', 'png')`)
 
-# Relicators by promiscuity levels
+## Relicators by promiscuity levels
 
 ```{r plot_noA, eval=output_refreshed, fig.show='hide'}
 ggplot( table_A, aes(x=time, y= number, color=type))+

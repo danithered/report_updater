@@ -1,4 +1,40 @@
 #### functions ####
+get_mtime <- Vectorize(function(target, path="~/", ssh=NA, ssh_key="~/.ssh/id_rsa"){
+  file = paste(path, 
+               target, 
+               sep=ifelse(nchar(path) > 0 & substr(path, nchar(path), nchar(path)) != "/", "/", ""))
+  
+  if(is.na(ssh)){ #local file
+    if( all(file.exists( file )) ){
+      return( system(paste("stat -c %y", file), intern=T) )
+    } else {
+      return(NA)
+    }
+  } else try({ 
+    #it is in shh
+    #connecting to ssh
+    ssh_con <- ssh_connect(ssh, keyfile = ssh_key)
+    if(!ssh_session_info(ssh_con)$connected){
+      warning("Could not establish shh connection")
+      return(NA)
+    }
+    
+    #download
+    type <- capture.output(ssh_exec_wait(ssh_con, paste0("tf=", 
+                                                         file, 
+                                                         ";if [ -f $tf ]; then echo file; else if [ -d $tf ]; then echo dir; else echo FALSE; fi; fi") 
+    ))[1]
+    if(!type %in% c("file", "dir")) return(NA)
+    
+    out <- capture.output(ssh_exec_wait(ssh_con, paste("stat -c %y", file)))[1]
+    #disconnect
+    ssh_disconnect(ssh_con)
+    return(out)
+    
+  })
+})
+
+
 get_file <- function(target, path="~/", ssh=NA, ssh_key="~/.ssh/id_rsa", fast=T, to=NA){
   if(is.na(ssh)){
     file = paste(path, 
@@ -87,6 +123,44 @@ get_subdirs <- Vectorize(function(path="~/", ssh=NA, ssh_key="~/.ssh/id_rsa"){
   })
 })
 
+get_filelist <- Vectorize(function(path="~/", ssh=NA, ssh_key="~/.ssh/id_rsa"){
+  if(nchar(path) > 0 & substr(path, nchar(path), nchar(path)) != "/" ) path=paste0(path, "/")
+  
+  if(is.na(ssh)){ #local dir
+    if( dir.exists( path ) ){
+      out <- system(paste("find", path, "-maxdepth 1 -type f"), intern=T)
+      if( length(out) == 0 ) return( NA) 
+      else return( out )
+    } else {
+      return(NA)
+    }
+  } else try({ 
+    #it is in shh
+    #connecting to ssh
+    ssh_con <- ssh_connect(ssh, keyfile = ssh_key)
+    if(!ssh_session_info(ssh_con)$connected){
+      warning("Could not establish shh connection")
+      return(NA)
+    }
+    
+    #check if dir exists
+    if(!as.logical(capture.output(ssh_exec_wait(ssh_con, paste0("if [ -d ", path, " ]; then echo TRUE; else echo FALSE; fi")  ))[1])){
+      return(NA)
+    }
+    
+    #get subdirs
+    out <- capture.output(ssh_exec_wait(ssh_con, paste("find", path, "-maxdepth 1 -type f") ))
+    if(length(out) > 1) out <- out[1:(length(out)-1)]
+    else out <- NA
+    
+    #disconnect
+    ssh_disconnect(ssh_con)
+    return(out)
+    
+  })
+})
+
+
 getjobs <- function(dirs){
   needed_entries = c("name", "description", "report", "target")
   
@@ -102,7 +176,7 @@ getjobs <- function(dirs){
     if(!is.na(dir$ssh)) file.remove(f)
     
     # process file
-    readpoints <- c(grep( c("\\[dir\\]|\\[subdir\\]"), fl), length(fl))
+    readpoints <- c(grep( c("\\[dir\\]|\\[subdir\\]"), fl), length(fl)+1)
     readpoints <- readpoints[!duplicated(readpoints)]
     
     out <- data.frame()
@@ -131,7 +205,13 @@ getjobs <- function(dirs){
                                      targetdir=lista$target) )
         
       } else { # subdir
+        #get subdirs
         subd <- suppressWarnings(get_subdirs(path=dir$dir, ssh=dir$ssh, ssh_key=dir$ssh_key))
+        # remove ones containing .ignore file
+        sudb <- subd[sapply(subd, function(sd) {
+          length(grep(".ignore", get_filelist(path=sd, ssh=dir$ssh, ssh_key=dir$ssh_key))) != 0
+        })]
+        # add to out
         if( length(subd) > 0 ) {
           enddirs <- sapply(strsplit(subd, "/"), function(x) x[length(x)])
           out <- rbind(out, data.frame(path = unname(subd), 
