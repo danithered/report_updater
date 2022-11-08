@@ -30,8 +30,13 @@ ui <- fluidPage(
                 )
               }),
               tabPanel("Summary", {
-                fluidPage(
-                  h3("bxv")
+                sidebarLayout(
+                  sidebarPanel(
+                       #uiOutput("reports")
+                  ), 
+                  mainPanel(
+                    DT::dataTableOutput("par_to_choose")
+                  )
                 )
               })
   )

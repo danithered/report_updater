@@ -34,6 +34,28 @@ shinyServer(function(input, output) {
                        selectable = which(data$jobs$targetdir %in% names(data$params)) )
       , editable=F)
     
+    #UI parameters
+    output$par_to_choose <- renderDataTable({
+      data$jobs
+    }
+      , server = TRUE
+      , escape=F
+      , filter = 'top'
+      , options = list( scrollX = TRUE, 
+                      colReorder = TRUE, 
+                      FixedHeader = TRUE,
+                      keys = TRUE#,
+                      #deferRender = TRUE,
+                      #scrollY = 200,
+                      #scroller = F
+        )
+      , extensions = c('ColReorder', 'FixedHeader')#, 'Scroller')
+      , selection=list(mode = 'single', 
+                       selected = min(which(data$jobs$targetdir %in% names(data$params))), 
+                       target = 'row', 
+                       selectable = which(data$jobs$targetdir %in% names(data$params)) )
+      , editable=F)
+    
     #UI params for a selectin
     output$par <- renderTable({
       r <- input$parameters_rows_selected
@@ -41,6 +63,20 @@ shinyServer(function(input, output) {
     })
     
     output$updatetime <- renderPrint(data$last_updated)
+    
+    output$reports <- renderUI({
+      # fluidPage(
+        selectizeInput("report",
+                     label = "Which reports would you like to see?",
+                     #selectize = F,
+                     #options=list(maxOptions=nrow(simul_names)),
+                     #size= nrow(simul_names),
+                     choices= unique(data$jobs$report)
+       )
+      
+      
+      # ,DT::dataTableOutput("par_to_choose")
+    })
     
     #pushing knit button
     observeEvent(input$knit, {
