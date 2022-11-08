@@ -68,4 +68,4 @@ for(jr in 1:nrow(jobs)){
   }
 }
 
-saveRDS(list(wheretolook, jobs, datas, last_updated = Sys.time()), "data.Rds")
+saveRDS(list(sources = wheretolook, jobs = jobs, params = datas, last_updated = Sys.time()), "data.Rds")
