@@ -1,7 +1,6 @@
 source("functions.R")
 
-if(file.exists("data.Rds")) lastdata <- readRDS("data.Rds")
-else lastdata <- NA
+if(file.exists("data.Rds")) lastdata <- readRDS("data.Rds") else lastdata <- NA
 
 #setwd("/home/danielred/data/programs/report_updater/")
 wheretolook <- read.table("imports.tsv", sep="\t", header=T) 
