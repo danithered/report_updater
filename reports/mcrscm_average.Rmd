@@ -61,7 +61,7 @@ ssh <- ifelse(nchar(params$ssh)==0, NA, params$ssh)
 
 ```
 
-```{r functions, cache=T}
+```{r functions, cache=T, eval=F}
 ################
 ## Functions ###
 ################
@@ -232,6 +232,10 @@ get_cached_files <- function(needed_files, path="./", ssh=NA, ssh_key="~/.ssh/id
       return(refreshed)
   })
 }
+```
+
+```{r load_funcs, cache=T}
+source("../functions.R")
 ```
 
 # simulation properties

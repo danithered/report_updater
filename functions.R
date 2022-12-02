@@ -399,3 +399,18 @@ get_remote_files <- function(address, pattern=NA, ...) {
   }
   return( grep(pattern, out, value = T) )
 } 
+
+get_cached_files <- function(needed_files, path="./", ssh=NA, ssh_key="~/.ssh/id_rsa"){
+  lapply(needed_files, function(file) {
+    hash <- get_mtime(needed_files, path=params$dir, ssh=ssh, ssh_key=params$ssh_key)
+    if(is.na(hash)) return(NA)
+    refreshed = F
+    table <- xfun::cache_rds({
+      f <- get_file(needed_files, path=params$dir, ssh=ssh, ssh_key = params$ssh_key)
+      refreshed <- ifelse(is.na(f), NA, T)
+      message(paste("Reading file", f))
+      read.table(f, sep=";", header=T)
+    }, hash = list(hash))
+    return(refreshed)
+  })
+}
