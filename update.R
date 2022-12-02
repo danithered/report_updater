@@ -1,5 +1,8 @@
 source("functions.R")
 
+if(file.exists("data.Rds")) lastdata <- readRDS("data.Rds")
+else lastdata <- NA
+
 #setwd("/home/danielred/data/programs/report_updater/")
 wheretolook <- read.table("imports.tsv", sep="\t", header=T) 
 jobs <- getjobs(wheretolook) |> do.call(what=rbind)
@@ -45,7 +48,9 @@ for(jr in 1:nrow(jobs)){
                                       nchar(job$targetdir)) != "/",
                              "/",
                              ""))
-  try({
+  # checkif it has been modified since last - if not then update!
+  curr_mtime <- ifelse( is.na(lastdata)[1], NA, get_mtime(path=job$path, ssh=job$ssh, ssh_key=job$ssh_key))
+  if( is.na(curr_mtime)) if(any(apply(lastdata$jobs, 1, function(x) all(x==job))) & curr_mtime > lastdata$last_updated) try({
     rmarkdown::render(paste0("reports/", job$report),
                       params = list(
                         dir = job$path,
