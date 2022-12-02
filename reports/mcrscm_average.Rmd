@@ -296,7 +296,7 @@ table_long <- xfun::cache_rds({
   message("table_long generated")
   table |> 
     select( !starts_with("no_A", ignore.case = F)) |> 
-    pivot_longer(cols=no_par:mean_a_enz2, names_to=c("what", "type"), values_to = "val", names_pattern = "(.*)_(.*)")
+    pivot_longer(cols= contains("enz") | contains("par"), names_to=c("what", "type"), values_to = "val", names_pattern = "(.*)_(.*)")
 }, rerun = output_refreshed )
 ```
 
