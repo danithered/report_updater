@@ -8,13 +8,12 @@ get_mtime <- (function(target=NULL, path="~/", ssh=NA, ssh_key="~/.ssh/id_rsa"){
   
   if(is.na(ssh)){ #local file
     if( all(file.exists( file )) ){
-      if(is.null(target)){
-        return( system(paste( "find", file, "-type f -exec stat \\{} --printf=\"%y\n\" \\; | sort -n -r | head -n 1" ), intern=T) )
-      } else {
-        return( system(paste("stat -c %y", paste(file, collapse = " ") ), intern=T) )
+      if(is.null(target)){ # is a dir
+        return( as.POSIXct(system(paste( "find", file, "-type f -exec stat \\{} --printf=\"%y\n\" \\; | sort -n -r | head -n 1" ), intern=T) ))
+      } else { # is a file
+        return( as.POSIXct( system(paste("stat -c %y", paste(file, collapse = " ") ), intern=T) ) )
       }
-      return( system(paste("stat -c %y", paste(file, collapse = " ") ), intern=T) )
-    } else {
+    } else { # does not exist
       return(NA)
     }
   } else try({ 
@@ -40,7 +39,7 @@ get_mtime <- (function(target=NULL, path="~/", ssh=NA, ssh_key="~/.ssh/id_rsa"){
     }
     #disconnect
     ssh_disconnect(ssh_con)
-    return(out)
+    return( as.POSIXct( out) )
     
   })
 })
