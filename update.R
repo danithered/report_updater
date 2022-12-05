@@ -1,4 +1,5 @@
 source("functions.R")
+force = F
 
 if(file.exists("data.Rds")) lastdata <- readRDS("data.Rds") else lastdata <- NA
 
@@ -48,8 +49,13 @@ for(jr in 1:nrow(jobs)){
                              "/",
                              ""))
   # checkif it has been modified since last - if not then update!
-  curr_mtime <- ifelse( is.na(lastdata)[1], NA, get_mtime(path=job$path, ssh=job$ssh, ssh_key=job$ssh_key))
-  if( is.na(curr_mtime)) if(any(apply(lastdata$jobs, 1, function(x) all(x==job))) & curr_mtime > lastdata$last_updated) try({
+  if(is.na(lastdata)[1]) curr_mtime <- NA else curr_mtime <- get_mtime(path=job$path, ssh=job$ssh, ssh_key=job$ssh_key)
+  
+  # run it...
+  if( force | #if it is forced
+      is.na(curr_mtime) | # or there is no lastdata (update has never been run before)
+      !any(apply(lastdata$jobs, 1, function(x) all(x==job))) | # or there is no record of this run 
+      curr_mtime > lastdata$last_updated ) try({ # or it has changed since last run
     rmarkdown::render(paste0("reports/", job$report),
                       params = list(
                         dir = job$path,
