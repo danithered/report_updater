@@ -13,7 +13,7 @@ params:
     value: report_cache/
   dir:
     label: Path to data dir
-    value: "/home/danielred/data/programs/mcrs_to_scm/OUT/"
+    value: "/home/danielred/data/programs/mcrs_to_scm/OUT/A7retest.6_5/"
   ssh:
     label: SSH address in format of user@domain:port
     value: ""
@@ -28,13 +28,10 @@ editor_options:
 ---
 
 ```{r, setup, include=FALSE, message=F}
-#params <- list(cache.path="report_cache/", dir="/home/danielred/data/programs/mcrs_to_scm/OUT/", )
-
 message("\ncache.path: ", params$cache.path,
         "\ndir: ", params$dir, 
         "\nssh: ", params$ssh, 
         "\nssh_key: ", params$ssh_key )
-#rootdir="/home/danielred/data/programs/mcrs_chromosome/OUT/"
 
 # set this option in the first code chunk in the document
 knitr::opts_chunk$set(echo = F, cache.path=params$cache.path, cache.lazy = FALSE )
@@ -43,19 +40,41 @@ knitr::opts_chunk$set(echo = F, cache.path=params$cache.path, cache.lazy = FALSE
 library(RColorBrewer)
 library(ggplot2)
 library(tidyr)
-#library(gganimate)
 library(lattice)
 library(scales)
 library(knitr)
-#library(Polychrome)
-#library(cowplot)
 library(dplyr)
+library(plotly)
+
+# add_log <- function(x) {
+#   layout(x, #title = 'myplot',
+#             updatemenus = list(list(
+#                 active = 0,
+#                 direction="right",
+#                 #type="buttons",
+#                 buttons= list(
+#                   list(label = 'linear',
+#                        method = 'update',
+#                        args = list(
+#                          list(visible = c(T,F)), 
+#                          list(yaxis = list(type = 'linear'), xaxis = list(type = 'linear'))
+#                          )
+#                        ),
+#                   list(label = 'log-log',
+#                        method = 'update', 
+#                        args = list(list(visible = c(T,F)), list(yaxis = list(type = 'log'), xaxis = list(type = 'log')))), 
+#                   list(label = 'log y',
+#                        method = 'update', 
+#                        args = list(list(visible = c(T,F)), list(yaxis = list(type = 'log'), xaxis = list(type = 'linear')))), 
+#                   list(label = 'log x',
+#                        method = 'update', 
+#                        args = list(list(visible = c(T,F)), list(xaxis = list(type = 'log'), yaxis = list(type = 'linear')))) 
+#                 )
+#             ))
+#   ) |> config(displaylogo = FALSE)
+# }
 
 par.orig <- par(no.readonly = T) # save default parameters
-
-# workdir <- ifelse(as.logical(params$ssh),
-#                   paste0(params$ssh_dir, "/", whattosee, "/"),
-#                   paste0(rootdir, whattosee, "/"))
 
 ssh <- ifelse(nchar(params$ssh)==0, NA, params$ssh)
 
@@ -68,7 +87,7 @@ source("../functions.R")
 # simulation properties
 
 ```{r get_params, cache=T}
-pf <- get_file("SAVE/parameters.txt", params$dir, ssh=params$ssh, ssh_key = params$ssh_key)
+pf <- get_file("SAVE/parameters.txt", params$dir, ssh=ssh, ssh_key = params$ssh_key)
   if(!is.na(pf)){
     t <- readLines(pf)
     t <- read.table( text = sub(" ", "\t", t) , header=F, sep="\t")
@@ -147,26 +166,30 @@ table_A <- xfun::cache_rds({
 ## Properties of enzyme types
 
 ```{r plot_everything, eval=output_refreshed, fig.show='hide'}
-ggplot(table_long, aes(x=time, y=val))+
+ggplotly(ggplot(table_long, aes(x=time, y=val))+
   geom_line(aes(color=type))+
-  facet_wrap(vars(what), scales = "free")#+
+  facet_wrap(vars(what), scales = "free_y", ncol=2)#+
   #labs(caption = Sys.time())
+)
 ```
 
 ![](`r knitr::fig_chunk('plot_everything', 'png')`)
 
 ## Cell diagnostics
 
-```{r, echo=F, eval=F}
+```{r, echo=F, eval=T}
 ggplot(table, aes(x=time, y=no_alive, color=replicators))+
    geom_point()+
    labs(x="Time [generations]", y="Number of vesicles with an active metabolism")
 ```
 
 ```{r plot_M, eval=output_refreshed, fig.show='hide'}
-ggplot(table, aes(x=time, y=mean_M ))+
-  geom_line()+
-  geom_errorbar(aes(ymin=mean_M - sd_M/sqrt(300), ymax=mean_M + sd_M/sqrt(300)))
+divide = sqrt(as.numeric(p$par_poolsize))
+ggplotly(ggplot(table, aes(x=time, y=mean_M ))+
+  #geom_errorbar(aes(ymin=mean_M - sd_M/sqrt(300), ymax=mean_M + sd_M/sqrt(300)), col="grey")+
+  geom_ribbon(aes(ymin=mean_M - sd_M/divide, ymax=mean_M + sd_M/divide), fill="grey")+
+  geom_line()
+) 
 ```
 
 ![](`r knitr::fig_chunk('plot_M', 'png')`)
@@ -174,8 +197,10 @@ ggplot(table, aes(x=time, y=mean_M ))+
 ## Relicators by promiscuity levels
 
 ```{r plot_noA, eval=output_refreshed, fig.show='hide'}
-ggplot( table_A, aes(x=time, y= number, color=type))+
-  geom_line()
+ggplotly(ggplot( table_A, aes(x=time, y= number, fill=type))+
+  geom_area()+
+  coord_cartesian(ylim=c(0, as.numeric(p$par_poolsize) * as.numeric(p$par_splitfrom)))
+) 
 ```
 
 ![](`r knitr::fig_chunk('plot_noA', 'png')`)
