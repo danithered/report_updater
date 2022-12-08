@@ -63,7 +63,7 @@ rules <- readRDS("rules.RDS")
 
 # Server
 shinyServer(function(input, output, session) {
-    setwd("/home/danielred/data/programs/mcrs_to_scm/OUT/A7retest.6_5/SAVE/")
+    #setwd("/home/danielred/data/programs/mcrs_to_scm/OUT/A7retest.6_5/SAVE/")
   
     # inic params
     params <- reactiveValues()
