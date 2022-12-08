@@ -17,6 +17,9 @@ robust.system <- function (cmd) {
   return(retval)
 }
 
+IPext <- "148.6.202.1"
+IPint <- "10.30.0.15"
+
 #### server function ####
 shinyServer(function(input, output) {
     data <- readRDS("data.Rds")
@@ -24,14 +27,16 @@ shinyServer(function(input, output) {
    
     #UI parameters
     output$parameters <- renderDataTable({
-        extlink <- gsub("/var/www/html/", "http://148.6.202.1/", data$jobs$targetdir)
-        inlink <- gsub("/var/www/html/", "http://10.30.0.15/", data$jobs$targetdir)
+        extlink <- gsub("/var/www/html/", paste0("http://", IPext, "/"), data$jobs$targetdir)
+        inlink <- gsub("/var/www/html/", paste0("http://", IPint, "/"), data$jobs$targetdir)
         applink <- paste0(
-          "http://148.6.202.1/shiny/apps/mcrsc_examiner/?dir=", 
+          paste0("http://", IPext, "/shiny/apps/mcrsc_examiner/?dir="), 
           data$jobs$path,
           "&ssh=", data$jobs$ssh)
-        data$jobs$links <- paste0("<a href=", extlink, ">[external]</a><a href=", inlink, ">[internal]</a><a href=", applink, ">[app]</a>")
-        data$jobs[,c("name", "path", "ssh", "report", "links")]
+        data$jobs$links <- paste0('<a href="', extlink, '" target="_blank">[external]</a>',
+                                  '<a href="', inlink, '" target="_blank">[internal]</a>',
+                                  '<a href="', applink, '" target="_blank">[app]</a>')
+        data$jobs[,c("name", "path", "ssh", "report", "links", "targetdir", "description")]
     }
       , server = TRUE
       , escape=F
@@ -53,7 +58,7 @@ shinyServer(function(input, output) {
     
     #UI parameters
     output$par_to_choose <- renderDataTable({
-      data$jobs
+      data$sources
     }
       , server = TRUE
       , escape=F
@@ -81,19 +86,6 @@ shinyServer(function(input, output) {
     
     output$updatetime <- renderPrint(data$last_updated)
     
-    output$reports <- renderUI({
-      # fluidPage(
-        selectizeInput("report",
-                     label = "Which reports would you like to see?",
-                     #selectize = F,
-                     #options=list(maxOptions=nrow(simul_names)),
-                     #size= nrow(simul_names),
-                     choices= unique(data$jobs$report)
-       )
-      
-      
-      # ,DT::dataTableOutput("par_to_choose")
-    })
     
     #pushing knit button
     observeEvent(input$knit, {
