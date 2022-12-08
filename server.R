@@ -4,6 +4,19 @@ library(DT)
 
 source("functions.R")
 
+robust.system <- function (cmd) {
+  stderrFile = tempfile(pattern="R_robust.system_stderr", fileext=as.character(Sys.getpid()))
+  stdoutFile = tempfile(pattern="R_robust.system_stdout", fileext=as.character(Sys.getpid()))
+  
+  retval = list()
+  retval$exitStatus = system(paste0(cmd, " 2> ", shQuote(stderrFile), " > ", shQuote(stdoutFile)))
+  retval$stdout = readLines(stdoutFile)
+  retval$stderr = readLines(stderrFile)
+  
+  unlink(c(stdoutFile, stderrFile))
+  return(retval)
+}
+
 #### server function ####
 shinyServer(function(input, output) {
     data <- readRDS("data.Rds")
@@ -88,8 +101,11 @@ shinyServer(function(input, output) {
     }) #observer
     
     #pushing git button
-    observeEvent(input$knit, {
-      system("git pull")
+    observeEvent(input$git, {
+      output$gitout <- renderPrint( paste(robust.system("git pull")) )
+      showModal(modalDialog( title= "git pull", easyClose=T,
+            verbatimTextOutput("gitout")
+      ))
     }) #observer
 
     

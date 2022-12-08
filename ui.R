@@ -19,7 +19,7 @@ ui <- fluidPage(
                            textOutput("updatetime"),
                     ),
                     column(4,
-                           actionButton("knit", "Update"),
+                           actionButton("knit", "Update reports"),
                            actionButton("git", "Version update")
                     )
                     
