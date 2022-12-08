@@ -13,7 +13,11 @@ shinyServer(function(input, output) {
     output$parameters <- renderDataTable({
         extlink <- gsub("/var/www/html/", "http://148.6.202.1/", data$jobs$targetdir)
         inlink <- gsub("/var/www/html/", "http://10.30.0.15/", data$jobs$targetdir)
-        data$jobs$links <- paste0("<a href=", extlink, ">[external]</a><a href=", inlink, ">[internal]</a>")
+        applink <- paste0(
+          "http://148.6.202.1/shiny/apps/mcrsc_examiner/?dir=", 
+          data$jobs$path,
+          "&ssh=", data$jobs$ssh)
+        data$jobs$links <- paste0("<a href=", extlink, ">[external]</a><a href=", inlink, ">[internal]</a><a href=", applink, ">[app]</a>")
         data$jobs[,c("name", "path", "ssh", "report", "links")]
     }
       , server = TRUE
