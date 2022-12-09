@@ -147,7 +147,7 @@ shinyServer(function(input, output) {
                         intermediates_dir = job$targetdir,
                         output_file = "index.html")
         data$jobs[selected, "updated"] <- Sys.time()
-        saveRDS(data, "data.Rds")
+        saveRDS(reactiveValuesToList(data), "data.Rds")
       })
       removeModal()
     })
@@ -181,7 +181,7 @@ shinyServer(function(input, output) {
                         intermediates_dir = job$targetdir,
                         output_file = "index.html")
         data$jobs[selected, "updated"] <- Sys.time()
-        saveRDS(data, "data.Rds")
+        saveRDS( reactiveValuesToList(data), "data.Rds")
       })
       removeModal()
     })
