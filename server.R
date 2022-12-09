@@ -22,8 +22,9 @@ IPint <- "10.30.0.15"
 
 #### server function ####
 shinyServer(function(input, output) {
-    data <- readRDS("data.Rds")
-  
+    dataorig <- readRDS("data.Rds")
+    data <- reactiveValues()
+    for(val in seq_along(dataorig)) data[[names(dataorig)[val]]] <- dataorig[[val]]
    
     #UI parameters
     output$parameters <- renderDataTable({
