@@ -235,7 +235,7 @@ getjobs <- function(dirs){
                                        description=lista$description, 
                                        report=lista$report,
                                        app=lista$app,
-                                       updated = NA,
+                                       updated = as.POSIXct(NA, ""),
                                        targetdir=paste(lista$target, 
                                                        enddirs, 
                                                        sep=ifelse(nchar(lista$target) > 0 & 
