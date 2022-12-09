@@ -128,7 +128,10 @@ shinyServer(function(input, output) {
                                                nchar(job$targetdir)) != "/",
                                       "/",
                                       ""))
-      showModal(modalDialog(title = "Knitting report"))
+      showModal(modalDialog(title = "Knitting report", 
+                            paste(job$report, "on simulation", job$path, "in FORCED mode"), 
+                            footer = NULL)
+      )
       try(rmarkdown::render(paste0("reports/", job$report),
                         params = list(
                           dir = job$path,
@@ -155,7 +158,10 @@ shinyServer(function(input, output) {
                                                nchar(job$targetdir)) != "/",
                                       "/",
                                       ""))
-      showModal(modalDialog(title = "Knitting report", paste(job$report, "on simulation", job$path, "in NOT forced mode")))
+      showModal(modalDialog(title = "Knitting report", 
+                            paste(job$report, "on simulation", job$path, "in NOT forced mode"), 
+                            footer = NULL)
+                )
       try(rmarkdown::render(paste0("reports/", job$report),
                         params = list(
                           dir = job$path,
