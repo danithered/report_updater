@@ -83,6 +83,7 @@ shinyServer(function(input, output) {
       selected = input$parameters_rows_selected
       if(length(selected) == 1){
         fluidRow(
+          actionButton("upd", "Update"),
           actionButton("force_upd", "Force update"),
           HTML(paste0('<a href="', gsub("/var/www/html/", paste0("http://", IPext, "/"), data$jobs$targetdir[selected]), '" target="_blank">[external link]</a>')),
           HTML(paste('<a href="', gsub("/var/www/html/", paste0("http://", IPint, "/"), data$jobs$targetdir[selected]), '" target="_blank">[internal link]</a>')),
@@ -134,6 +135,33 @@ shinyServer(function(input, output) {
                           ssh = job$ssh,
                           ssh_key = job$ssh_key,
                           force=T,
+                          cache.path= wheretocache
+                        ),
+                        output_dir = job$targetdir,
+                        knit_root_dir = job$targetdir,
+                        intermediates_dir = job$targetdir,
+                        output_file = "index.html"))
+      removeModal()
+    })
+    
+    observeEvent(input$upd, {
+      selected = input$parameters_rows_selected
+      job = data$jobs[selected,]
+      wheretocache = paste(job$targetdir, 
+                           "report_cache", 
+                           sep=ifelse(nchar(job$targetdir) > 0 & 
+                                        substr(job$targetdir, 
+                                               nchar(job$targetdir), 
+                                               nchar(job$targetdir)) != "/",
+                                      "/",
+                                      ""))
+      showModal(modalDialog(title = "Knitting report", paste(job$report, "on simulation", job$path, "in NOT forced mode")))
+      try(rmarkdown::render(paste0("reports/", job$report),
+                        params = list(
+                          dir = job$path,
+                          ssh = job$ssh,
+                          ssh_key = job$ssh_key,
+                          force=F,
                           cache.path= wheretocache
                         ),
                         output_dir = job$targetdir,
