@@ -127,7 +127,7 @@ shinyServer(function(input, output) {
                                       "/",
                                       ""))
       showModal(modalDialog(title = "Knitting report"))
-      rmarkdown::render(paste0("reports/", job$report),
+      try(rmarkdown::render(paste0("reports/", job$report),
                         params = list(
                           dir = job$path,
                           ssh = job$ssh,
@@ -138,7 +138,7 @@ shinyServer(function(input, output) {
                         output_dir = job$targetdir,
                         knit_root_dir = job$targetdir,
                         intermediates_dir = job$targetdir,
-                        output_file = "index.html")
+                        output_file = "index.html"))
       removeModal()
     })
     
