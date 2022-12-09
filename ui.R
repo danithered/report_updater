@@ -15,6 +15,7 @@ body <- dashboardBody(
   tabItems(
     tabItem(tabName = "status",
             fluidPage(
+              uiOutput("simacts"),
               fluidRow(
                 DT::dataTableOutput("parameters")
               ),
