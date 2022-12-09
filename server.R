@@ -36,7 +36,7 @@ shinyServer(function(input, output) {
         #data$jobs$links <- paste0('<a href="', extlink, '" target="_blank">[external]</a>',
         #                          '<a href="', inlink, '" target="_blank">[internal]</a>',
         #                          '<a href="', applink, '" target="_blank">[app]</a>')
-        data$jobs[,c("name", "path", "ssh", "report", "targetdir", "description")]
+        data$jobs[,c("name", "path", "ssh", "report", "targetdir", "description", "updated")]
     }
       , server = TRUE
       , escape=F
@@ -132,7 +132,8 @@ shinyServer(function(input, output) {
                             paste(job$report, "on simulation", job$path, "in FORCED mode"), 
                             footer = NULL)
       )
-      try(rmarkdown::render(paste0("reports/", job$report),
+      try({
+        rmarkdown::render(paste0("reports/", job$report),
                         params = list(
                           dir = job$path,
                           ssh = job$ssh,
@@ -143,7 +144,10 @@ shinyServer(function(input, output) {
                         output_dir = job$targetdir,
                         knit_root_dir = job$targetdir,
                         intermediates_dir = job$targetdir,
-                        output_file = "index.html"))
+                        output_file = "index.html")
+        data$jobs[selected, "updated"] <- Sys.time()
+        saveRDS(data, "data.Rds")
+      })
       removeModal()
     })
     
@@ -162,7 +166,8 @@ shinyServer(function(input, output) {
                             paste(job$report, "on simulation", job$path, "in NOT forced mode"), 
                             footer = NULL)
                 )
-      try(rmarkdown::render(paste0("reports/", job$report),
+      try({
+        rmarkdown::render(paste0("reports/", job$report),
                         params = list(
                           dir = job$path,
                           ssh = job$ssh,
@@ -173,7 +178,10 @@ shinyServer(function(input, output) {
                         output_dir = job$targetdir,
                         knit_root_dir = job$targetdir,
                         intermediates_dir = job$targetdir,
-                        output_file = "index.html"))
+                        output_file = "index.html")
+        data$jobs[selected, "updated"] <- Sys.time()
+        saveRDS(data, "data.Rds")
+      })
       removeModal()
     })
     
