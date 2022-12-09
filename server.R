@@ -117,6 +117,7 @@ shinyServer(function(input, output) {
 
     #pushing force update
     observeEvent(input$force_upd, {
+      selected = input$parameters_rows_selected
       job = data$jobs[selected,]
       wheretocache = paste(job$targetdir, 
                            "report_cache", 
@@ -126,7 +127,7 @@ shinyServer(function(input, output) {
                                                nchar(job$targetdir)) != "/",
                                       "/",
                                       ""))
-      #showModal(modalDialog(title = "Knitting report"))
+      showModal(modalDialog(title = "Knitting report"))
       try(rmarkdown::render(paste0("reports/", job$report),
                         params = list(
                           dir = job$path,
@@ -139,7 +140,7 @@ shinyServer(function(input, output) {
                         knit_root_dir = job$targetdir,
                         intermediates_dir = job$targetdir,
                         output_file = "index.html"))
-      #removeModal()
+      removeModal()
     })
     
 })
