@@ -57,11 +57,15 @@ for(jr in 1:nrow(jobs)){
     fromlast <- apply(lastdata$jobs, 1, function(x) all(x==job))  
   }
   
+  hastorun <- force
+  if(!any(fromlast)){
+    hastorun <- T
+  } else if(curr_mtime > lastdata$jobs$updated[fromlast]) {
+    hastorun <- T
+  }
+  
   # run it...
-  if( force | #if it is forced
-      #is.na(curr_mtime) | # or there is no lastdata (update has never been run before)
-      !any(fromlast) | # or there is no record of this run 
-      curr_mtime > lastdata$jobs$updated[fromlast] ) {
+  if( hastorun ) {
     try({ # or it has changed since last run
         rmarkdown::render(paste0("reports/", job$report),
                       params = list(
