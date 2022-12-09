@@ -175,7 +175,7 @@ get_filelist <- Vectorize(function(path="~/", ssh=NA, ssh_key="~/.ssh/id_rsa"){
 
 
 getjobs <- function(dirs){
-  needed_entries = c("name", "description", "report", "target")
+  needed_entries = c("name", "description", "report", "target", "app")
   
   lapply(1:nrow(dirs), function(r) {
     dir = dirs[r,]
@@ -234,6 +234,8 @@ getjobs <- function(dirs){
                                        name=lista$name, 
                                        description=lista$description, 
                                        report=lista$report,
+                                       app=lista$app,
+                                       updated = NA,
                                        targetdir=paste(lista$target, 
                                                        enddirs, 
                                                        sep=ifelse(nchar(lista$target) > 0 & 
