@@ -126,7 +126,7 @@ shinyServer(function(input, output) {
                                                nchar(job$targetdir)) != "/",
                                       "/",
                                       ""))
-      showModal(modalDialog(title = "Knitting report"))
+      #showModal(modalDialog(title = "Knitting report"))
       try(rmarkdown::render(paste0("reports/", job$report),
                         params = list(
                           dir = job$path,
@@ -139,7 +139,7 @@ shinyServer(function(input, output) {
                         knit_root_dir = job$targetdir,
                         intermediates_dir = job$targetdir,
                         output_file = "index.html"))
-      removeModal()
+      #removeModal()
     })
     
 })
