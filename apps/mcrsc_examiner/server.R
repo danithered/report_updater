@@ -68,7 +68,7 @@ shinyServer(function(input, output, session) {
     # inic params
     params <- reactiveValues()
     params$cache.path <- "report_cache/"
-    params$dir <- "/home/danielred/data/programs/mcrs_to_scm/OUT/A7retest.6_5/"
+    params$dir <- "/home/danielred/data/programs/mcrs_scm/OUT/A7long.2_4/"
     params$ssh <- NA
     params$ssh_key <- "~/.ssh/id_rsa"
     params$force <- FALSE

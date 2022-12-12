@@ -54,12 +54,14 @@ for(jr in 1:nrow(jobs)){
     fromlast <- F
   } else {
     curr_mtime <- get_mtime(path=job$path, ssh=job$ssh, ssh_key=job$ssh_key)
-    fromlast <- apply(lastdata$jobs, 1, function(x) all(x==job))  
+    fromlast <- apply(lastdata$jobs, 1, function(x) all(x==job, na.rm = T))  
   }
   
   hastorun <- force
   if(!any(fromlast)){
     hastorun <- T
+  } else if( is.na(lastdata$jobs$updated[fromlast]) ) {
+    hastorun = T
   } else if(curr_mtime > lastdata$jobs$updated[fromlast]) {
     hastorun <- T
   }
