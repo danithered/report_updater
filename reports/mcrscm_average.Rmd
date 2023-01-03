@@ -94,7 +94,7 @@ pf <- get_file("SAVE/parameters.txt", params$dir, ssh=ssh, ssh_key = params$ssh_
     
     if(!is.na(params$ssh)) file.remove(pf)
     
-    write.table(t, file="parameters.tsv", sep="\t", col.names = F, row.names = F)
+    write.table(t, file=mergepath(params$cache.path, "parameters.tsv"), sep="\t", col.names = F, row.names = F)
     
     p <- as.list(as.character(t$V2))
     names(p) <- t$V1

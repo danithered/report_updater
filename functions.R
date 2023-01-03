@@ -442,7 +442,7 @@ get_cached_files <- function(needed_files, path="./", ssh=NA, ssh_key="~/.ssh/id
 mergepath <- function(...){
   x <- as.character(unlist(list(...)))
   x <- x[nchar(x) > 0]
-  if(length(x) == 0) return(NA)
+  if(length(x) == 0) return("/")
   
   wrong <- c(substr(x[1:(length(x)-1) ], nchar(x), nchar(x)) != "/", F)
   x[wrong] <- paste0(x[wrong], "/")
@@ -459,4 +459,84 @@ filename <- function(x){
 
 path <- function(x){
   sapply(strsplit(x, "/"), function(x) ifelse(length(x) > 1, paste(x[1:(length(x)-1)], collapse = "/"), x) )
+}
+
+check_dir <- function(targetdir){
+  if(!substr(targetdir, 1, 1) %in% c("/", ".", "~")) {
+    tomake = "."
+  } else {
+    tomake = character()
+  }
+  try({
+    if(!dir.exists(targetdir)) {
+      parts = strsplit(targetdir, "/")[[1]]
+      for(tm in parts){
+        tomake = mergepath(tomake, tm)
+        if (!dir.exists(tomake)) { #does it existst so far?
+          if(!dir.create(tomake)){ #if not -> tries to make it
+            return(FALSE)
+          }
+        }
+      }
+    }
+  })
+  return(TRUE)
+}
+
+addSound <- function(filename=NA, type=NA, message="Your browser does not supports playing audio files!", centered=F, controls=TRUE, autoplay=FALSE){
+  if(is.na(type)) {
+    type <- lapply(strsplit(filename, ".", fixed=TRUE), 
+                   function(x) switch(x[length(x)]
+                                      , mp3="audio/mpeg"
+                                      , MP3="audio/mpeg"
+                                      , ogg="audio/ogg"
+                                      , OGG="audio/ogg"
+                                      , wav="audio/wav"
+                                      , WAV="audio/wav" 
+                   ) 
+    )
+  }
+  
+  if(!is.na(filename[1])) {
+    output <- c(ifelse(centered, '<div class="centered">', "")
+                , paste0("<audio", ifelse(controls, " controls",""), ifelse(autoplay, " autoplay",""), ">", collapse = "")
+                , paste0 ('<source src="', filename, '" type="', type, '">')
+                , message
+                , "</audio>"
+                , ifelse(centered, '</div>', "")
+    )
+    writeLines(output)
+    return(paste(output, collapse = " ") )
+    
+  }
+  else writeLines("no audio filename given!")
+}
+
+addVideo <- function(filename=NA, type=NA, message="Your browser does not supports playing video files!", centered=F, controls=TRUE, autoplay=FALSE, loop=T){
+  if(is.na(type)) {
+    type <- lapply(strsplit(filename, ".", fixed=TRUE), 
+                   function(x) switch(x[length(x)]
+                                      , mp4="video/mp4"
+                                      , MP4="video/mp4"
+                   ) 
+    )
+  }
+  
+  if(!is.na(filename[1])) {
+    output <- c(ifelse(centered, '<div class="centered">', "")
+                , paste0("<video", 
+                         ifelse(controls, " controls",""), 
+                         ifelse(loop, " loop",""), 
+                         ifelse(autoplay, " autoplay",""), 
+                         ">", collapse = "")
+                , paste0 ('<source src="', filename, '" type="', type, '">')
+                , message
+                , "</audio>"
+                , ifelse(centered, '</div>', "")
+    )
+    writeLines(output)
+    return(paste(output, collapse = " ") )
+    
+  }
+  else writeLines("no video filename given!")
 }

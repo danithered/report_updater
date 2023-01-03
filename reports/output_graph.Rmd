@@ -1,0 +1,1355 @@
+---
+title: Report of a simulation
+author: "Dániel Vörös"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    self_contained: false
+params:
+  cache.path:
+    label: Set path of cache folder
+    value: report_cache/
+  dir:
+    label: Path to data dir
+    value: "/home/danielred/data/programs/mcrs_chromosome/OUT/A7.1_22"
+  ssh:
+    label: SSH address in format of user@domain:port
+    value: ""
+  ssh_key:
+    label: Location of ssh public key
+    value: ~/.ssh/id_rsa
+  force:
+    label: To force the document to regenerate all its plots
+    value: FALSE
+editor_options: 
+  chunk_output_type: console
+---
+```{r, setup, include=FALSE, message=F}
+message("\ncache.path: ", params$cache.path,
+        "\ndir: ", params$dir, 
+        "\nssh: ", params$ssh, 
+        "\nssh_key: ", params$ssh_key )
+
+# set this option in the first code chunk in the document
+knitr::opts_chunk$set(echo = F, cache.path=params$cache.path, cache.lazy = FALSE )
+
+# libraries
+library(RColorBrewer)
+library(ggplot2)
+library(tidyr)
+library(lattice)
+library(scales)
+library(knitr)
+library(dplyr)
+library(plotly)
+library(gganimate)
+library(Polychrome)
+library(cowplot)
+
+par.orig <- par(no.readonly = T) # save default parameters
+
+ssh <- ifelse(nchar(params$ssh)==0, NA, params$ssh)
+```
+
+
+```{r load_funcs, cache=T}
+source("../functions.R")
+source("../rnarep.R")
+source("../grid_plot.R")
+```
+
+```{r functions, cache=T}
+beszur <- function(m, pos, val= 0){
+  m2 <- matrix(val,ncol=ncol(m)+1, nrow=nrow(m)+1)
+  cn <- colnames(m)
+  rn <- rownames(m)
+  
+  if(pos > 1){
+    m2[1:(pos-1), 1:(pos-1)] <- m[1:(pos-1), 1:(pos-1)]
+  }
+  if(pos <= ncol(m)){
+    m2[(pos+1):(ncol(m)+1),(pos+1):(ncol(m)+1)] <- m[pos:ncol(m),pos:ncol(m)]
+    if(pos > 1){
+      m2[pos:ncol(m)+1,1:(pos-1)] <- m[pos:ncol(m),1:(pos-1)]
+      m2[1:(pos-1),pos:ncol(m)+1] <- m[1:(pos-1),pos:ncol(m)]
+    }
+  }
+  
+  if( !is.null(cn) ) {
+    if(pos == 1){ # elejere
+      ncn <- c(NA, cn)
+      nrn <- c(NA, rn)
+    } else if(pos > ncol(m)){ #vegere
+      ncn <- c(cn, NA)
+      nrn <- c(rn, NA)
+    } else{ # koztes
+      ncn <- c(cn[1:(pos-1)], NA, cn[pos:length(cn)])
+      nrn <- c(rn[1:(pos-1)], NA, rn[pos:length(rn)])
+    }
+    colnames(m2) <- ncn
+    rownames(m2) <- nrn
+  }
+  
+  return(m2)
+}
+
+collegend <- function(..., min=NA, max=NA, pal){
+  leg <- c(max, rep(NA, length(pal) -2), min)
+  legend(...,
+         legend = leg,
+         fill = pal,
+         border = NA,
+         #title.adj = 2,
+         y.intersp = par("pin")[2]/length(pal)*4)
+}
+
+```
+
+
+```{r get_params, cache=T}
+check_dir(params$cache.path)
+
+try({
+  pf <- get_file("SAVE/parameters.txt", params$dir, ssh=ssh, ssh_key = params$ssh_key)
+  if(!is.na(pf)){
+    t <- readLines(pf)
+    t <- read.table( text = sub(" ", "\t", t) , header=F, sep="\t")
+    
+    if(!is.na(ssh)) file.remove(pf)
+    
+    write.table(t, file="parameters.tsv", sep="\t", col.names = F, row.names = F)
+    
+    p <- as.list(as.character(t$V2))
+    names(p) <- t$V1
+  }
+  size = as.numeric(p$par_ncol) * as.numeric(p$par_nrow)
+  begs <- c("no_","mean_R_","mean_length_","mean_mfe_","mean_a_")
+  endings <- c("par", paste0("enz", 1:as.numeric(p$par_noEA) -1))
+})
+
+#rename enzymes
+Enames <- enzN(c(0, 2^(1:as.numeric(p$par_noEA)-1) ) )
+names(Enames) <- endings
+
+#rename measure variables
+Mnames <- expression("no_" = number,
+                     "mean_R_" = bar(R),
+                     "mean_length_" = bar(length),
+                     "mean_mfe_"= bar( paste(Delta, "G")[min] ),
+                     "mean_a_"=bar(a[i]))
+needed_cols <- c("no_par", paste0("no_enz", 1:as.numeric(p$par_noEA)-1))
+
+whattosee = p$par_ID
+```
+
+# simulation properties
+
+Simulation ID: **`r p$par_ID`**
+
+Parameters:
+
+```{r output_paramtable, cache=T, dependson="get_params"}
+knitr::kable(unlist(p))
+```
+
+To see the meaning of parameters [here](#params_vis).
+
+
+```{r check_table}
+# needed_file: the file I want to check if it has changed
+# table: the data from needed_file
+# output_refreshed: vaiable indicating if 
+
+needed_file <- "output.csv"
+
+hash <- get_mtime(needed_file, path=params$dir, ssh=ssh, ssh_key=params$ssh_key)
+
+if(is.na(hash)) {
+  warning("could not get hash on file")
+  knitr::kable(unlist(p))
+}
+
+output_refreshed = F
+      
+table <- xfun::cache_rds({
+  f <- get_file(needed_file, path=params$dir, ssh=ssh, ssh_key = params$ssh_key)
+  output_refreshed <- ifelse(is.na(f), NA, T)
+  message(paste("Reading file", f))
+  table <- read.table(f, sep=";", header=T)
+  if(!is.na(ssh)) file.remove(f)
+  table
+}, hash = list(hash), rerun = params$force)
+
+```
+
+
+```{r longtable_gen}
+longtable <- xfun::cache_rds({
+  message("longtable generated")
+  longtable <- do.call(rbind, apply(table, 1, function(r){
+	do.call(rbind, lapply( endings, function(x){
+		if(x=="par") wh=1:4 else wh = 1:5
+		data.frame(time=r["time"], 
+							 enz_type=x, 
+							 meas= begs[wh], 
+							 value= unlist(r[paste0(begs, x)[wh]] ),
+							 row.names = NULL
+							 )
+  	})
+  	)
+  })
+  )
+  longtable$enz_type <- as.factor(longtable$enz_type)
+  longtable$meas <- as.factor(longtable$meas)
+  levels(longtable$enz_type) <- Enames[levels(longtable$enz_type)]
+  longtable
+}, rerun = output_refreshed )
+```
+
+# simple plots from output
+
+## number of promiscous replicators
+
+```{r time_A, cache=!output_refreshed}
+linecolors <- brewer.pal(4, "Set1")
+plot(table$time, table$no_A0
+     , type="l"
+     , ylim=c(0, max(table$replicators))
+     , main="Number of promiscous replicators"
+     , col=linecolors[1])
+for(i in 1:3) lines(table$time, table[,paste0("no_A", i)], col=linecolors[i+1])
+legend("topleft", fill=linecolors, legend=paste("A",0:3))
+```
+
+## by activity by property
+
+```{r time_everything, cache=!output_refreshed, eval=F}
+par(mfrow=c(1+as.numeric(p$par_noEA),5), oma=c(5,2,4,1), mar=c(0,4.1,0,0))
+
+plotprop=T
+axt="n"
+size = as.numeric(p$par_ncol) * as.numeric(p$par_nrow)
+for(ea in c(paste0("enz",0:(as.numeric(p$par_noEA)-1) ),"par" )) {
+  plottype=T
+  if(ea=="par") axt="s"
+  for(prop in c("no", "mean_R", "mean_length", "mean_mfe", "mean_a")){
+    what <- paste(prop, ea, sep="_")
+    
+    if(prop == "no") {
+      table[,what] <- table[,what] / size
+      yl = c(0,1)
+    }
+    else{
+      yl=NULL
+    }
+    
+    if(what == "mean_a_par") plot.new()
+    else plot(table$time, table[,what], type="l", ylab="", xlab="", xaxt=axt, las=1, ylim=yl, col="red")
+    
+    if(plottype){
+      plottype=F
+      mtext(ea, 2,4)
+    }
+    
+    if(plotprop) mtext(prop, 3,2)
+  }
+  if(plotprop) plotprop=F
+}
+mtext("time", 1, 3, outer=T)
+
+par(par.orig) #restore default parameters
+
+```
+
+```{r}
+levels(longtable$meas) <- Mnames[levels(longtable$meas)]
+```
+
+
+```{r time_everything2, cache=!output_refreshed}
+ggplot(data=longtable, aes(x=time, y=value))+
+	geom_line(col="red") +
+	facet_grid(meas~enz_type, scales="free_y", labeller = label_parsed)+
+  theme(axis.title.y = element_blank(),
+        axis.text.x = element_text(angle=60, hjust=1))
+```
+
+
+## frequency of promiscous replicators in the inic pool
+
+```{r inicpool_freq_promisc, cache=!output_refreshed}
+barplot( as.numeric(table[table$time==0,paste0("no_A", 0:3)]),  
+         names.arg = paste0("no_A", 0:3)#,
+         #main=paste("time:", tt, "res:", whattosee)
+         )
+```
+
+## number of activities in inic pool
+
+```{r inicpool_no_acts, cache=!output_refreshed}
+barplot( as.numeric(table[table$time==0, needed_cols])*as.numeric(p$par_ncol)*as.numeric(p$par_nrow) ,  
+         names.arg = needed_cols#,
+         #main=paste("time:", tt, "res:", whattosee)
+         )
+```
+
+```{r inic_types, cache=T}
+if(as.numeric(p$par_noEA) <= 3) {
+  typecolors <- c("black", brewer.pal(2^as.numeric(p$par_noEA),"Set3"))
+} else {
+  #typecolors <- c("black", distinctColorPalette(2^as.numeric(p$par_noEA), altCol=TRUE, runTsne=TRUE))
+  typecolors <- c("black", createPalette(2^as.numeric(p$par_noEA), c("#010101", "#ff0000"), M=100000) )
+}
+
+names(typecolors) <-  enzN(-1:(2^as.numeric(p$par_noEA)-1) )
+```
+
+# unique data
+
+```{r read_data_savetimes}
+alltimes <- grep(".tsv", get_filelist(path= mergepath(params$dir, "SAVE/"), ssh=ifelse(nchar(ssh) == 0, NA, ssh), ssh_key=params$ssh_key), value=T)
+
+alltimes <- sapply(strsplit(alltimes, "/"), function(x) strsplit(x[length(x)], ".", fixed = T)[[1]][1] )
+#alltimes <- alltimes[seq(1, length(alltimes), 2)]
+alltimes <- alltimes[order(as.numeric(alltimes))]
+if(file.exists(mergepath(params$cache.path, "read_states.Rds"))) {
+  readytimes <- readRDS(mergepath(params$cache.path, "read_states.Rds"))
+} else {
+  readytimes <- character()
+}
+
+if(length(alltimes) != length(readytimes) | params$force){ # have to update
+  ttt = alltimes[!alltimes %in% readytimes]
+  cacheit = F
+  saveRDS(alltimes, mergepath(params$cache.path, "read_states.Rds"))
+} else { # no need to update
+  ttt = c()
+  cacheit = T
+}
+#read_in_ttt <- ttt[!paste0("t", ttt) %in% names(state)]
+```
+
+```{r}
+if(file.exists(mergepath(params$cache.path, "save_vals.Rds"))){
+  list2env(readRDS(mergepath(params$cache.path, "save_vals.Rds")), globalenv())
+} else {
+  Mmax = 0 # calculate Mmax and Rmax values for maps
+  Rmax = 0
+  trans_time <- data.frame(from=numeric(), to=numeric(), time= numeric(), n = numeric()) # for Balazs_plot
+  varcors <- data.frame(time=numeric(), cmp1=character(), cmp2=character(), cor=numeric()) # for valcors fig
+}
+```
+
+```{r read_states_and_calculate, eval=length(ttt)>0}
+for(tt in ttt ){
+  # read in file
+  f <- get_file(paste0(tt, ".tsv"), path=mergepath(params$dir, "SAVE/"), ssh=ssh, ssh_key = params$ssh_key)
+  st <- read.table(f, sep="\t", header=F)
+  if(!is.na(ssh)) file.remove(f)
+
+  #modify column names
+  if(ncol(st) == 9 + as.numeric(p$par_noEA)){
+    colnames(st) <- c("seq", 
+                                            "str", 
+                                            "mfe", 
+                                            "Pfold", 
+                                            "Pdeg", 
+                                            "no_sites",
+                                            "R",
+                                            "M",
+                                            "type",
+                                            paste0("a", 0:(as.numeric(p$par_noEA)-1)) )
+  } else {
+    colnames(st) <- c("seq", 
+                                            "str", 
+                                            "mfe", 
+                                            "Pfold", 
+                                            "Pdeg", 
+                                            "no_sites",
+                                            "R",
+                                            "M",
+                                            "type",
+                                            paste0("a", 0:(as.numeric(p$par_noEA)-1)),
+                                            "type_prev")
+  }
+  
+  # additional columns
+  st$type_f <- as.factor(st$type)
+  st$type_name <- as.factor(as.character(enzN(st$type)))
+  st$length <- nchar(st$seq)
+  #st$comp_type <- bitshiftL(st$type_prev, p$par_noEA) + st$type
+  st$A <- type2A(st$type)
+  st$A[st$seq=="N"]<- -1  
+  
+  # to get real complement strand data (not prev)
+  # if(F) try({st$type_prev <- as.numeric(system(paste("../rev_type",  
+  #                                                 p$par_nrow, 
+  #                                                 p$par_ncol,
+  #                                                 p$par_noEA, 
+  #                                                 paste0("../", p$par_str_pool), 
+  #                                                 paste0(workdir, "SAVE/", tt, ".tsv"))
+  #                                           , intern=T))}, silent=T)
+  
+  message(paste("reading in snapshot", tt, "max:", max(as.numeric(ttt)), "number of snapshots:", length(ttt)))
+  
+  # set vals
+  types <- levels(st$type_f)
+  Mmaxact = max(st$M)
+  Rmaxact = max(st$R)
+  if(Mmaxact > Mmax) Mmax <- Mmaxact
+  if(Rmaxact > Rmax) Rmax <- Rmaxact
+<<balazs_plot_data>>
+<<valcors_data>>
+
+  # create figs
+  
+  # Figs in first state
+  
+  if( tt == "0"){
+    try({
+      outtable <-table(st[st$seq != "N", "type_name"])
+      barplot(outtable, 
+          names.arg = sapply(names(outtable), function(x) parse(text=x)), 
+          col=sapply(names(outtable), function(x, cols) cols[x==names(cols)], typecolors), las=2 )
+    })
+  }
+  
+  # other figs
+<<plot_hist>>
+<<hist_mfegg>>
+<<hist_Pdeg>>
+#<<propsbars>>
+#<<propsall>>
+<<kompl_easy>>
+}
+
+# save Mmax and Rmax and trans_time and varcors
+saveRDS(list(Mmax=Mmax, Rmax=Rmax, trans_time=trans_time, varcors=varcors), mergepath(params$cache.path, "save_vals.Rds"))
+```
+
+```{r read_states_for_maps, eval=length(tt)>0}
+for(tt in ttt ){
+  # read in file
+  f <- get_file(paste0(tt, ".tsv"), path=mergepath(params$dir, "SAVE/"), ssh=ssh, ssh_key = params$ssh_key)
+  st <- read.table(f, sep="\t", header=F)
+  if(!is.na(ssh)) file.remove(f)
+
+  #modify column names
+  if(ncol(st) == 9 + as.numeric(p$par_noEA)){
+    colnames(st) <- c("seq", 
+                                            "str", 
+                                            "mfe", 
+                                            "Pfold", 
+                                            "Pdeg", 
+                                            "no_sites",
+                                            "R",
+                                            "M",
+                                            "type",
+                                            paste0("a", 0:(as.numeric(p$par_noEA)-1)) )
+  } else {
+    colnames(st) <- c("seq", 
+                                            "str", 
+                                            "mfe", 
+                                            "Pfold", 
+                                            "Pdeg", 
+                                            "no_sites",
+                                            "R",
+                                            "M",
+                                            "type",
+                                            paste0("a", 0:(as.numeric(p$par_noEA)-1)),
+                                            "type_prev")
+  }
+  
+  message(paste("again reading in snapshot", tt, "max:", max(as.numeric(ttt)), "number of snapshots:", length(ttt)))
+  
+  # set vals
+  types <- levels(st$type_f)
+  
+  # create figs
+  <<maps>>
+  
+}
+```
+
+```{r plot_hist, eval=FALSE}
+par(mfrow=c(1,2), oma=c(0,0,2,0))
+
+#check targetdir
+targetdir <- mergepath(params$cache.path, "simple_hist/")
+check_dir(targetdir)
+
+# histogram of mfe
+try({
+  png(mergepath(targetdir, paste0(tt, ".png")))
+  hist(st[st$type > 0,"mfe"], 
+       #main = paste("time:", tt, "res:", whattosee) , 
+       main = "" , 
+       xlim=c(0, -35),
+       ylim=c(0, as.numeric(p$par_ncol) * as.numeric(p$par_nrow)/15 )
+       )
+  hist(st[st$type > 0,"M"], 
+       #main = paste("time:", tt, "res:", whattosee) 
+       main = "",
+       xlim=c(0, 2000), 
+       ylim=c(0, as.numeric(p$par_ncol) * as.numeric(p$par_nrow)/15 )
+       )
+  
+  mtext(paste("time:", tt), outer=T)
+  dev.off()
+})
+```
+
+```{r hist_mfegg, eval=F}
+#check targetdir
+targetdir <- mergepath(params$cache.path, "hist_mfegg/")
+check_dir(targetdir)
+
+Emin=-35
+
+#st$mfe[st$mfe < -25] <- -25 # set the minimum of mfe (it is done in runtime, anyway)
+try(ggsave(mergepath(targetdir, paste0(tt, ".png")),
+  ggplot(data=st[st$seq != "N",],aes(mfe, fill=type_name)) +
+    geom_histogram(binwidth=0.5) +
+    xlim(0,Emin) +
+    ylim(0, as.numeric(p$par_ncol)*as.numeric(p$par_nrow)/3)+
+    labs(caption=paste("time:", tt, "res:", whattosee)) +
+    scale_fill_discrete(labels=parse_format(), name="")
+))
+
+```
+
+```{r hist_Pdeg, eval=F}
+#check targetdir
+targetdir <- mergepath(params$cache.path, "hist_Pdeg/")
+check_dir(targetdir)
+
+try(ggsave(mergepath(targetdir, paste0(tt, ".png")),
+  ggplot(data=st[st$seq != "N",],aes(Pdeg, fill=type_name)) +
+    geom_histogram(binwidth=0.01) +
+    labs(caption=paste("time:", tt, "res:", whattosee)) +
+    scale_fill_discrete(labels=parse_format())+
+    xlim(0,1)
+))
+
+```
+
+```{r propsbars, eval=F}
+#check targetdir
+targetdir <- mergepath(params$cache.path, "propsbars/")
+check_dir(targetdir)
+
+try({ 
+  st_filt <- st[st$seq!="N",]
+  
+  #plot
+  pppp <- lapply(unique(st_filt$type), function(x, st) stack(st[st$type==x, ], select=c("mfe", "length", "R"), drop=F), st_filt)
+  names(pppp)= unique(st_filt$type)
+  
+  stlong <- data.frame()
+  for( typeit in sort(unique(st_filt$type)) ){
+    stlong <- rbind(stlong, 
+                    cbind(  pppp[[ as.character(typeit) ]], 
+                            type=rep( as.character(enzN(typeit)), nrow(pppp[[ as.character(typeit) ]]) ) 
+                    )
+    )
+  }
+  stlong$type <- as.factor(stlong$type)
+  
+  ggsave(mergepath(targetdir, paste0(tt, ".png")),
+    ggplot(data=stlong, aes(x=type, fill=ind)) +
+      geom_bar(aes(y=values), stat="summary", fun="mean", position=position_dodge()) +
+      scale_x_discrete(labels=parse( text= levels(stlong$type) ))+
+      labs(title=tt, caption=whattosee)
+  )
+}
+```
+
+```{r propsall, eval=F, warning=FALSE, fig.height=12, fig.width=8}
+try({
+  #check targetdir
+  targetdir <- mergepath(params$cache.path, "propsall/")
+  check_dir(targetdir)
+  
+  drop_unused = F
+  dropfrom = 3
+  
+  # select data
+  st_filt <- st[st$seq != "N",]
+  
+  if(nrow(st_filt) == 0) {
+    pic <- matrix(c(0,1,0,0,0,0,0,0,0,0,0,1,0,
+                    1,1,0,0,0,0,0,0,0,0,0,1,1,
+                    0,0,0,1,1,1,1,1,1,1,0,0,0,
+                    0,0,1,1,1,1,1,1,1,1,1,0,0,
+                    0,0,1,1,0,0,1,0,0,1,1,0,0,
+                    0,0,1,1,1,1,1,1,1,1,1,0,0,
+                    0,0,0,1,1,1,1,1,1,1,0,0,0,
+                    1,1,0,1,1,0,1,0,1,1,0,1,1,
+                    0,1,0,0,0,0,0,0,0,0,0,1,0
+    ), ncol=9)
+    image(1:nrow(pic), 1:ncol(pic), pic, ylim=c(nrow(pic),0.5), asp=1, axes=F, xlab="", ylab="")
+    next
+  }
+  
+  kell <- 0:(2^as.numeric(p$par_noEA)-1)
+  
+  #reorder by numbers of activities
+  kell2 <- kell[order(type2noA(kell))]
+  
+  pppp <- lapply(unique(st_filt$type), function(x, st) {
+    out <- stack(st[st$type==x, ], select=c("mfe", "Pfold", "length", "R", "Pdeg"), drop=F)
+    out <- rbind(out, data.frame(values=sum(st$type==x), ind="count") )
+    return(out)
+  }
+  , st_filt)
+  
+  names(pppp)= unique(st_filt$type)
+  
+  stlong <- data.frame(values=numeric(), ind=factor(levels=levels(pppp[[1]]$ind )), type=factor(levels=enzN(kell2)))
+  for( typeit in sort(unique(st_filt$type)) ){
+    stlong <- rbind(stlong, 
+                    cbind(  pppp[[ as.character(typeit) ]], 
+                            type=rep( as.character(enzN(typeit)), nrow(pppp[[ as.character(typeit) ]]) ) 
+                    )
+    )
+  }
+  stlong$type <- factor(stlong$type, levels = enzN(kell2))
+  stlong$type <- factor(stlong$type, levels = enzN(kell2[type2A(kell2) < dropfrom | table(stlong$type) > 0]) ) #drop unused levels over dropfrom
+  
+  #transformations
+  #stlong[stlong$ind == "count", "values"] <- stlong[stlong$ind == "count", "values"]/as.numeric(p$par_ncol)/as.numeric(p$par_nrow) #proprtional to number of cells
+  #stlong[stlong$ind == "count", "values"] <- stlong[stlong$ind == "count", "values"]/ sum(stlong[stlong$ind == "count", "values"])
+  #stlong[stlong$ind == "mfe", "values"] <- stlong[stlong$ind == "mfe", "values"] / 25
+  #stlong[stlong$ind == "length", "values"] <- stlong[stlong$ind == "length", "values"] / as.numeric(p$MAXLEN)
+  
+  Rmax <- as.numeric(p$par_g) / ( as.numeric(p$par_b1)+as.numeric(p$par_b2) ) * ( as.numeric(p$par_ll) )
+  #stlong[stlong$ind == "R", "values"] <- stlong[stlong$ind == "R", "values"] / Rmax
+  
+  #draw plots
+  if(nrow(stlong) >0){
+    gplots <- list(
+      #mfe
+      ggplot(data=stlong[stlong$ind == "mfe", ], aes(x=type, fill=type, y=values)) +
+        facet_grid(ind~.)+
+        #geom_boxplot(aes(y=values))+
+        geom_violin(width=1)+
+        stat_summary(fun=mean, geom="point")+
+        scale_x_discrete(labels=parse( text= levels(stlong$type) ), drop=drop_unused)+
+        coord_cartesian(ylim = c(0, -30))+
+        labs(title= tt, subtitle=whattosee)+
+        theme(axis.title.x = element_blank(), 
+              axis.text.x=element_blank(),
+              axis.ticks = element_blank(),
+              legend.position = "none",
+              axis.title.y = element_blank()),
+      
+      
+      #Pfold
+      ggplot(data=stlong[stlong$ind == "Pfold", ], aes(x=type, fill=type, y=values)) +
+        facet_grid(ind~., labeller = label_bquote( P[fold] ))+
+        geom_violin(width=1)+
+        stat_summary(fun=mean, geom="point")+
+        #geom_boxplot(aes(y=values))+
+        scale_x_discrete(labels=parse( text= levels(stlong$type) ), drop=drop_unused)+
+        scale_y_continuous(breaks= c(0, 1), 
+                           labels= c("0%", "100%"), 
+                           #limits = c(0,1),
+                           #sec.axis = sec_axis(~ . * 1.20, name = "mpg (UK)")
+        ) +
+        coord_cartesian(ylim = c(0, 1))+
+        theme(axis.title.x = element_blank(), 
+              axis.text.x=element_blank(),
+              axis.ticks = element_blank(),
+              legend.position = "none",
+              axis.title.y = element_blank()),
+      
+      
+      #Pdeg
+      ggplot(data=stlong[stlong$ind == "Pdeg", ], aes(x=type, fill=type, y=values)) +
+        facet_grid(ind~., labeller = label_bquote( P[deg] ))+
+        geom_violin(width=1)+
+        stat_summary(fun=mean, geom="point")+
+        #geom_boxplot(aes(y=values))+
+        scale_x_discrete(labels=parse( text= levels(stlong$type) ), drop=drop_unused)+
+        scale_y_continuous(breaks= c(0, 1), 
+                           labels= c("0%", "100%"), 
+                           #limits = c(0,1),
+                           #sec.axis = sec_axis(~ . * 1.20, name = "mpg (UK)")
+        ) +
+        coord_cartesian(ylim = c(0, 1))+
+        theme(axis.title.x = element_blank(), 
+              axis.text.x=element_blank(),
+              axis.ticks = element_blank(),
+              legend.position = "none",
+              axis.title.y = element_blank()),
+      
+      
+      #R
+      ggplot(data=stlong[stlong$ind == "R", ], aes(x=type, fill=type, y=values)) +
+        facet_grid(ind~.)+
+        #geom_boxplot(aes(y=values))+
+        geom_violin(width=1)+
+        stat_summary(fun=mean, geom="point")+
+        scale_x_discrete(labels=parse( text= levels(stlong$type) ), drop=drop_unused)+
+        scale_y_continuous(#breaks= c(0, 1), 
+          labels= function(x) paste(round(x,2)), 
+          #limits = c(0,Rmax),
+          #limits = c(0,max(stlong[stlong$ind == "R", "values"])),
+          #sec.axis = sec_axis(~ . * 25, name = "kJ", breaks=-25:0)
+        )  +
+        #coord_cartesian(ylim = c(-30, 0))+
+        theme(axis.title.x = element_blank(), 
+              axis.text.x=element_blank(),
+              axis.ticks = element_blank(),
+              legend.position = "none",
+              axis.title.y = element_blank()),
+      
+      
+      #length
+      ggplot(data=stlong[stlong$ind == "length", ], aes(x=type, fill=type, y=values)) +
+        facet_grid(ind~.)+
+        geom_violin(width=1)+
+        stat_summary(fun=mean, geom="point")+
+        #geom_boxplot(aes(y=values))+
+        scale_x_discrete(labels=parse( text= levels(stlong$type) ), drop=drop_unused)+
+        scale_y_continuous(#breaks= c(0, 1), 
+          #labels= c("0%", "1%"), 
+          #limits = c(0,as.numeric(p$MAXLEN)/3),
+          #sec.axis = sec_axis(~ . * 25, name = "kJ", breaks=-25:0)
+        )  +
+        coord_cartesian(ylim = c(0, as.numeric(p$MAXLEN)/3))+
+        theme(axis.title.x = element_blank(), 
+              axis.text.x=element_blank(),
+              axis.ticks = element_blank(),
+              legend.position = "none",
+              axis.title.y = element_blank()),
+      #count
+      ggplot(data=stlong[stlong$ind=="count",], aes(x=type, 
+                                                    fill=type,
+                                                    #y=values / as.numeric(p$par_ncol) / as.numeric(p$par_nrow)
+                                                    y=values / sum(stlong[stlong$ind=="count", "values"])
+      )) +
+        facet_grid(ind~.)+
+        geom_bar(stat="identity") +
+        geom_text(aes(label=values), 
+                  position = position_stack(vjust=0.5),
+                  size=2, 
+                  #fill=NA, 
+                  angle=270)+
+        scale_x_discrete(labels = parse_format(), drop=drop_unused )+
+        scale_y_continuous(breaks= c(0, 1), 
+                           labels= c("0%", "100%"))+
+        coord_cartesian(ylim = c(0, 1), clip="off" )+
+        theme(legend.position = "none",
+              axis.ticks = element_blank(),
+              axis.title.y = element_blank())
+    )
+    
+    
+    ggsave(mergepath(targetdir, paste0(tt, ".png")), 
+           plot_grid( plotlist= gplots, align = "v", ncol = 1, rel_heights = c(1.5,1,1,1,1,2) ))
+  } # if there is data
+}) #try
+```
+
+```{r kompl, eval=F}
+#check targetdir
+targetdir <- mergepath(params$cache.path, "kompl/")
+check_dir(targetdir)
+png(mergepath(targetdir, paste0(tt, ".png")))
+
+try({
+    # Read in reverse state
+    #cout <- system("../../rev 300 300 3 ../../IN/mapping.txt SAVE/0.tsv", intern=T)
+    cout <- system(paste("../rev",  
+                         p$par_nrow, 
+                         p$par_ncol,
+                         p$par_noEA, 
+                         paste0("../", p$par_str_pool), 
+                         paste0(workdir, "SAVE/", tt, ".tsv"))
+                   , intern=T)
+    rev_state <- do.call(rbind.data.frame, strsplit(cout, "\t"))
+    colnames(rev_state) <- c("seq", 
+                             "str", 
+                             "mfe", 
+                             "Pfold", 
+                             "Pdeg", 
+                             "no_sites", 
+                             "R", 
+                             "type", 
+                             paste0("a",0:(as.numeric(p$par_noEA) -1) ) )
+    
+    # calculate table
+    van <- st$seq != "N"
+    odf <- data.frame(orig=st$type[van], rev=rev_state$type[van])
+    odf$orig <- factor(odf$orig, levels = 0:(2^as.numeric(p$par_noEA)-1))
+    odf$rev <- factor(odf$rev, levels = 0:(2^as.numeric(p$par_noEA)-1))
+    pairs <- table(odf)
+    
+    #make it square
+    # pairs2 <- data.frame()
+    # for(i in 0:5) {
+    #   if( !i %in% as.numeric(colnames(pairs)) ){
+    #     if(i>0) pairs2 <- cbind(pairs2, pairs[,1:i])
+    #     pairs2 <- cbind(pairs2, rep(0, nrow(pairs)) )
+    #     if( (i+1) <5) pairs2 <- cbind(pairs2, pairs[ (i+1):ncol(pairs) ] )
+    #   } 
+    # }
+    
+    
+    # p2 <- pairs
+    # p2[lower.tri(pairs)] <- p2[lower.tri(pairs)] + t(p2)[lower.tri(pairs)] # add to each other
+    # p2[upper.tri(pairs)] <- t(p2)[upper.tri(pairs)] # make it symmetric
+    pairs <- pairs + t(pairs)
+    diag(pairs) <- diag(pairs)/2
+    
+    tv <- as.numeric(colnames(pairs))
+    kell <- 0:(2^as.numeric(p$par_noEA)-1)
+    
+    
+    
+    pairs2 <- pairs
+    for( ke in kell[!kell %in% tv]+1 ) pairs2 <- beszur(pairs2, ke)
+    colnames(pairs2) <- kell
+    rownames(pairs2) <- kell
+    
+    #komplementer plot for state
+    
+    image(kell, kell,  pairs2, 
+          xaxt="n", yaxt="n" ,
+          xlab="", ylab="",
+          main = tt, sub= whattosee
+    )
+    axis(1, at= kell, labels=enzN(kell))
+    axis(2, at= kell, labels=enzN(kell), las=1)
+    abline(h= kell+0.5)
+    abline(v= kell+0.5)
+})
+
+dev.off()
+```
+
+```{r kompl_easy, eval=F, fig.height=12, fig.width=8}
+#check targetdir
+targetdir <- mergepath(params$cache.path, "kompl/")
+check_dir(targetdir)
+png(mergepath(targetdir, paste0(tt, ".png")))
+
+try({
+    par(mfrow=c(2,1))
+    
+    # calculate table
+    van <- st$seq != "N"
+    odf <- data.frame(orig=st$type[van], rev=st$type_prev[van])
+    odf$orig <- factor(odf$orig, levels = 0:(2^as.numeric(p$par_noEA)-1))
+    odf$rev <- factor(odf$rev, levels = 0:(2^as.numeric(p$par_noEA)-1))
+    pairs <- table(odf)
+    
+    #make it square
+    # pairs2 <- data.frame()
+    # for(i in 0:5) {
+    #   if( !i %in% as.numeric(colnames(pairs)) ){
+    #     if(i>0) pairs2 <- cbind(pairs2, pairs[,1:i])
+    #     pairs2 <- cbind(pairs2, rep(0, nrow(pairs)) )
+    #     if( (i+1) <5) pairs2 <- cbind(pairs2, pairs[ (i+1):ncol(pairs) ] )
+    #   } 
+    # }
+    
+    
+    # p2 <- pairs
+    # p2[lower.tri(pairs)] <- p2[lower.tri(pairs)] + t(p2)[lower.tri(pairs)] # add to each other
+    # p2[upper.tri(pairs)] <- t(p2)[upper.tri(pairs)] # make it symmetric
+    
+    
+    #pairs <- pairs + t(pairs)
+    #diag(pairs) <- diag(pairs)/2
+    
+    tv <- as.numeric(colnames(pairs))
+    
+    kell <- 0:(2^as.numeric(p$par_noEA)-1)
+    
+    pairs2 <- pairs
+    for( ke in kell[!kell %in% tv]+1 ) pairs2 <- beszur(pairs2, ke)
+    colnames(pairs2) <- kell
+    rownames(pairs2) <- kell
+    
+    #reorder by numbers of activities
+    kell2 <- kell[order(type2noA(kell))]
+    pairs2 <- pairs2[as.character(kell2),]
+    pairs2 <- pairs2[,as.character(kell2)]
+    
+    
+    
+    #komplementer plot for state
+    
+    image(kell, kell,  
+          pairs2, 
+          xaxt="n", yaxt="n" ,
+          xlab="", ylab="",
+          col= heat.colors(100, rev = TRUE)[5:100],
+          main = tt, sub= whattosee
+    )
+    axis(1, at= kell, labels=enzN(kell2), las=2)
+    axis(2, at= kell, labels=enzN(kell2), las=1)
+    abline(h= kell+0.5)
+    abline(v= kell+0.5)
+    
+    image(kell, kell,  
+          log(pairs2+1), 
+          #pairs2, 
+          xaxt="n", yaxt="n" ,
+          xlab="", ylab="",
+          #col= hcl.colors(200, "YlOrRd", rev = TRUE),
+          col= heat.colors(100, rev = TRUE)[5:100],
+          main = "on a logaritmic scale"
+    )
+    text(rep(kell, length(kell)), rep(kell, each=length(kell)), c(pairs2), cex=0.5 )
+    
+    axis(1, at= kell, labels=enzN(kell2), las=2)
+    axis(2, at= kell, labels=enzN(kell2), las=1)
+    abline(h= kell+0.5)
+    abline(v= kell+0.5)
+  })
+dev.off()
+```
+
+```{r maps, eval=F, fig.height=4.5, fig.width=7}
+#check targetdir
+targetdir <- mergepath(params$cache.path, "maps/")
+check_dir(targetdir)
+png(mergepath(targetdir, paste0(tt, ".png")))
+
+par(mfrow=c(2,4), mar=c(0.5,0.5,0.5,0.5), xpd=NA, oma=c(3,0,4,0))
+plot.new()
+
+try({
+  
+  #legend 1
+  par(mfg=c(1,1))
+  plot.new()
+  u <- par("usr")
+  collegend(u[2], u[4]- (u[4]-u[3])*0.15, xjust=1,
+            #title="Metabolism",
+            #min=0, max="max", 
+            min=0, max=Mmax, 
+            bty="n",
+            pal=hcl.colors(111, "YlOrRd", rev = F))
+  text(u[2], u[4]- (u[4]-u[3])*0.1, "Metabolism", cex=1.5, adj=c(1,0))
+  
+  #map1
+  par(mfg=c(1,2))
+  st$M[st$M<0] <- NA
+  image(1:300, 1:300, matrix(st$M, ncol=300), 
+        asp=1, 
+        col = hcl.colors(111, "YlOrRd", rev = TRUE), zlim=c(0, Mmax),
+        axes=F, xlab="", ylab=""#,
+        #main="Metabolism", 
+        #sub=paste("time:", tt, "res:", whattosee)
+  )
+  
+  #legend 2
+  par(mfg=c(1,4))
+  #plot(0,0,axes=F, pch=NA, xlab="", ylab="", main="Replication rate", adj=0)
+  plot.new()
+  u <- par("usr")
+  collegend(u[1], u[4]- (u[4]-u[3])*0.15, 
+            #title="Replication rate",
+            #title.adj = 5,
+            min=0, max=Rmax, 
+            bty="n",
+            pal=hcl.colors(300, "PuRd"))
+  text(u[1], u[4]- (u[4]-u[3])*0.1, "Replication rate", cex=1.5, adj=c(0,0))
+  
+  #map 2
+  par(mfg=c(1,3))
+  stateR <- st$R
+  stateR[st$seq=="N"] <- NA
+  image(1:300, 1:300,matrix(stateR, ncol=300), 
+        asp=1, 
+        #col= hcl.colors(300, "PuRd"),
+        col= hcl.colors(300, "PuRd", rev=T),
+        zlim=c(0, Rmax),
+        axes=F, xlab="", ylab=""#,
+        #main="R", 
+        #sub=paste("time:", tt, "res:", whattosee)
+  )
+  #mtext("Replication rate", side=3, cex=0.5, outer=F)
+  
+  #legend 3
+  par(mfg=c(2,1))
+  dd<- st$type
+  dd[st$seq=="N"]<- -1
+  u_dd <- sort(unique(dd))
+  u_cols <- sapply( as.character(enzN(u_dd)), function(x, cols) cols[x==names(cols)], typecolors)
+  
+  plot.new()
+  legend(u[2], u[4]- (u[4]-u[3])*0.15, xjust=1,
+         horiz=F, 
+         #legend=enzN(u_dd), 
+         legend= parse(text=names(typecolors)), 
+         #title="Replicator types",
+         #fill=u_cols,
+         fill=typecolors,
+         ncol=ceiling((2^as.numeric(p$par_noEA)+1) / 10),
+         bty="n")
+  text(u[2], u[4]- (u[4]-u[3])*0.1, "Replicator types", cex=1.5, adj=c(1,0))
+  
+  #map 3
+  par(mfg=c(2,2))
+  image(1:300, 1:300, matrix(dd, ncol=300), 
+        col= typecolors ,
+        zlim= c(-1,(2^as.numeric(p$par_noEA)-1)),
+        asp=1, #main="Replicator types",
+        axes=F, xlab="", ylab="")
+  
+  #legend 4
+  par(mfg=c(2,4))
+  
+  plot.new()
+  u<-par("usr")
+  u_dd <- -1:as.numeric(p$par_noEA) 
+  u_dd[u_dd > -1] <- paste("A", u_dd[u_dd > -1])
+  u_dd[u_dd=="-1"] <- "empty"
+  legend(u[1], u[4]- (u[4]-u[3])*0.15,
+         horiz=F, 
+         #legend=c("empty", "parasite", "specialist", "2act", "3act"), 
+         legend= u_dd, 
+         #title="Promiscuity level",
+         fill=c("black", brewer.pal(length(u_dd)-1,"Dark2")),bty="n" )
+  text(u[1], u[4]- (u[4]-u[3])*0.1, "Promiscuity level", cex=1.5, adj=c(0,0))
+  
+  #map 4
+  par(mfg=c(2,3))
+  # dd[dd %in% c(1,2,4)]<- 1
+  # dd[dd %in% c(3, 5,6)]<- 2
+  # dd[dd == 7]<- 3
+  # #u_dd <- sort(unique(dd))
+  dd<- st$type
+  dd <- type2A(dd)
+  dd[st$seq=="N"]<- -1    
+  image(1:300, 1:300, matrix(dd, ncol=300), 
+        col= c("black", brewer.pal(length(u_dd)-1,"Dark2")) , 
+        zlim=c(-1, as.numeric(p$par_noEA)),
+        asp=1, #main="Promiscuity level",
+        axes=F, xlab="", ylab="")
+  
+  #titles
+  mtext(tt, outer = T, cex=2, line=1)
+  mtext(whattosee, line=1, outer = T, side=1)
+})
+  
+dev.off()
+```
+
+```{r balazs_plot_data, eval=F}
+trans <- table(st[, c("type","type_prev")])
+trans <- trans[,colnames(trans)!=-1] #to filter out new mutatants (if from prev data)
+
+for(from in rownames(trans) ) for(to in colnames(trans) ){
+  #from = rownames(trans)[2]; to = colnames(trans)[2]
+  trans_time[nrow(trans_time)+1,] <- list(from = as.numeric(from), to = as.numeric(to), time = as.numeric(tt), n = trans[from, to])
+}
+```
+
+```{r valcors_data, eval=F}
+vars <- c("mfe", "M", "R", "A")
+
+try({
+  for(f in 1:(length(vars)-1)) for(s in (f+1):length(vars)){
+      varcors <- rbind(varcors, 
+                       data.frame(time=as.numeric(tt), 
+                                  cmp1=vars[f], 
+                                  cmp2=vars[s], 
+                                  cor=cor(st[,vars[f]], st[,vars[s]], method="pearson") ))
+      varcors <- rbind(varcors, 
+                       data.frame(time=as.numeric(tt), 
+                                  cmp1=vars[s], 
+                                  cmp2=vars[f], 
+                                  cor=cor(st[,vars[f]], st[,vars[s]], method="pearson") ))
+  }
+})
+```
+
+
+
+
+
+```{r create_animations, eval=!cacheit}
+targetdir <- mergepath(params$cache.path, "animations/")
+check_dir(targetdir)
+
+# system(paste0("convert -delay 20 ", 
+#               mergepath(params$cache.path, "simple_hist/"), 
+#               "*.png ", 
+#               mergepath(targetdir,"simple_hist.gif"))
+#        )
+vidnames <- c("simple_hist", "hist_mfegg", "hist_Pdeg", "propsbars", "propsall", "kompl", "maps")
+for(vid in vidnames){
+  try(system(
+    paste0("ffmpeg -framerate 20 -pattern_type glob -i ", 
+                mergepath(params$cache.path, vid, "/"), 
+                "*.png ", 
+                mergepath(targetdir, paste0(vid, ".mp4") ))  
+  ))
+}
+```
+
+
+```{r cache=T, results='asis'}
+addVideo(mergepath(params$cache.path, "animations", "simple_hist.mp4"), loop=T)
+```
+
+
+
+# OLD stuff
+
+```{r , fig.show='animate', eval=F, animation.hook="ffmpeg", ffmpeg.format="mp4", interval=0.5, aniopts="controls,loop", cache=TRUE, dependson="read_data_save"}
+par(mfrow=c(1,2), oma=c(0,0,2,0))
+for(tt in ttt )
+{ 
+  #tt=0
+  st <- state[[paste0("t", tt)]] # get the state
+  types <- levels(st$type_f)
+  
+  #### PLOTS ####
+  
+  # histogram of mfe
+  try({
+    hist(st[st$type > 0,"mfe"], 
+         #main = paste("time:", tt, "res:", whattosee) , 
+         main = "" , 
+         xlim=c(0, -35),
+         ylim=c(0, as.numeric(p$par_ncol) * as.numeric(p$par_nrow)/15 )
+    )
+    hist(st[st$type > 0,"M"], 
+         #main = paste("time:", tt, "res:", whattosee) 
+         main = "",
+         xlim=c(0, 2000), 
+         ylim=c(0, as.numeric(p$par_ncol) * as.numeric(p$par_nrow)/15 )
+    )
+    
+    mtext(paste("time:", tt, "res:", whattosee), outer=T)
+  })
+  
+}
+```
+
+
+## MFE
+
+```{r cache=T}
+addVideo(mergepath(params$cache.path, "animations", "hist_mfegg.mp4"), loop=T)
+```
+
+## Pdeg
+
+```{r cache=T}
+addVideo(mergepath(params$cache.path, "animations", "hist_Pdeg.mp4"), loop=T)
+```
+
+## Maps
+
+```{r cache=T}
+addVideo(mergepath(params$cache.path, "animations", "maps.mp4"), loop=T)
+```
+
+## Properties of types
+
+```{r cache=T}
+addVideo(mergepath(params$cache.path, "animations", "propsbars.mp4"), loop=T)
+```
+
+```{r cache=T}
+addVideo(mergepath(params$cache.path, "animations", "propsall.mp4"), loop=T)
+```
+
+# Komplementer plot
+
+```{r cache=T}
+addVideo(mergepath(params$cache.path, "animations", "kompl.mp4"), loop=T)
+```
+
+# Balazs plot
+
+```{r balazs_plot, cache=TRUE, cache.rebuild=!cacheit}
+if(nrow(trans_time) > 0) try({
+  ggplot(trans_time, aes(x=time, y= n, colour=  as.character(enzN(to))  ))+
+    geom_line()+
+    facet_wrap(~ as.character(enzN(from)), labeller=label_parsed)+
+    scale_colour_discrete(labels = parse_format() , name="to")
+})
+```
+
+# Correlations
+
+```{r valcors, cache=TRUE, cache.rebuild=!cacheit}
+vars <- c("mfe", "M", "R", "A")
+
+try({
+  varcors$cmp1 <- factor(varcors$cmp1, levels=vars)
+  varcors$cmp2 <- factor(varcors$cmp2, levels=vars)
+  
+  ggplot(varcors, aes(x=time, y=cor, color=cmp2))+
+    geom_line()+
+    facet_grid(cmp1~., drop=T)+
+    coord_cartesian(ylim=c(-1,1))+
+    labs(x="Time [generations]", y="Pearson correlation coefficient")
+})
+
+```
+
+# Parameters visually {#params_vis}
+
+## Neighbourhood sizes
+
+```{r metN, cache=T}
+par(mfrow=c(1,2))
+
+n_neighsMet <- plotNeigh(as.numeric(p$par_Nmet), main="Metabolic neighbourhood", sub=p$par_Nmet)
+n_neighsRep <- plotNeigh(as.numeric(p$par_Nrep), main="Replication neighbourhood", sub=p$par_Nrep)
+
+```
+
+Number of cells in a metabolic neighborhood: `r n_neighsMet` and in a replication neighborhood: `r n_neighsRep` (central cell included).
+
+## Probablity of being folded
+
+$$P_{fold} = 1-\frac{1}{1 + e^{-cE}}$$
+  
+```{r params_Pfold, cache=T}
+Emin=-35
+
+curve(1-1/(1+exp(as.numeric(p$par_c)*x)),
+      xlim=c(0, Emin),
+      ylim=c(0,1),
+      xlab="MFE",
+      ylab=expression(P[fold]),
+      main=p$par_ID,
+      yaxt="n"
+)
+axis(2, at=c(0,0.5,1), labels=c("0%", "50%", "100%"), las=1)
+```
+
+## Subadditive effect for cis-promiscous enzimatic activities 
+
+Each motif has a basic activity ($\alpha_i$), but in case a replicator has more than one, than those activities will be counted as follows:
+  
+  $$a_i=P_{fold} \frac{\alpha_i}{m^\sigma}, ~ \sigma >1$$
+  
+  In case of $P_{fold} = 1$ and $\alpha_i=100\%$ for all $i$, it means:
+  
+```{r params_activities, cache=T}
+
+xv <- 1:10
+plot(xv, 1/(xv^as.numeric(p$par_sigma)),
+     ylim=c(0,1),
+     xlim=c(1,10), 
+     type="b",
+     yaxt="n",
+     xlab="number of active sites (m)",
+     ylab=expression(a[i]),
+     main=p$par_ID
+)
+axis(2, at=c(0,0.5,1), labels=c("0%", "50%", "100%"), las=1)
+```
+
+## Rate of degradation
+
+old version:
+  
+  $$P_{deg}= max(P_{deg}) - range(P_{deg}) \frac{E}{E_{min}}, ~ E \ge E_{min}$$
+  
+  new version:
+  
+  $$P_{deg}=min(P_{deg})+range(P_{deg}) \cdot e^{E \cdot f_{deg}}$$
+  
+  **actual:**
+  
+```{r params_Pdegvals_cont, cache=T, results='asis'}
+if("par_flexPdeg" %in% names(p)){
+  Pdflex = as.numeric(p$par_flexPdeg)
+  Pdmin = as.numeric(p$par_minPdeg)
+  Pdegrange = as.numeric(p$par_rangePdeg)
+  
+  cat(paste("$$ P_{deg}=", Pdmin, "+", Pdegrange, "e^{", Pdflex, "E} $$"))
+  newPdeg = T
+} else {
+  Pdegmax=ifelse("par_maxPdeg" %in% names(p), as.numeric(p$par_maxPdeg), 0.9)
+  Pdegrange=ifelse("par_rangePdeg" %in% names(p), as.numeric(p$par_rangePdeg), 0.8)
+  
+  cat(paste("$$ P_{deg}=", Pdegmax, "-", Pdegrange, "\\frac{E}{", p$par_Emin, "}, ~ E \\ge", p$par_Emin, "$$"))
+  newPdeg = F
+}
+```
+
+
+```{r params_Pdegvals, cache=T, eval=!newPdeg}
+curve(Pdegmax - Pdegrange*ifelse(x<as.numeric(p$par_Emin), as.numeric(p$par_Emin), x)/as.numeric(p$par_Emin),
+      xlim=c(0, as.numeric(p$par_Emin)-5),
+      ylim=c(0, 1),
+      yaxt="n",
+      xlab="MFE",
+      ylab=expression(P[deg]),
+      main=p$par_ID
+)
+axis(2, at=c(0,0.5,1, Pdegmax, Pdegmax-Pdegrange), labels=c("0%", "50%", "100%", paste0(c(Pdegmax, Pdegmax-Pdegrange)*100, "%")), las=1)
+grid()
+```
+
+```{r params_Pdegvals_new, cache=T, eval=newPdeg}
+curve(exp(Pdflex*x)*Pdegrange+Pdmin, 
+      xlim=c(0, Emin),
+      ylim=c(0, 1),
+      yaxt="n",
+      xlab="MFE",
+      ylab=expression(P[deg]),
+      main=p$par_ID)
+axis(2, at=c(0,0.5,1, Pdmin, Pdmin+Pdegrange), labels=c("0%", "50%", "100%", paste0(c(Pdmin, Pdmin+Pdegrange)*100, "%")), las=1)
+grid()
+
+```
+
+## Replication rate
+
+
+$$R_i(P_{fold}, L)=\frac{g}{b_1+b_2L} \left [ l+ (1-P_{fold})\right], ~ l > 0$$
+$$R_i(P_{fold}, L)=W(L) \left( \hat l -P_{fold}\right), ~ \hat l > 1$$
+  
+```{r, params_R, cache=T}
+
+Pfs <- seq(0, 1, 0.1)
+colPf <- brewer.pal(length(Pfs), "Paired")
+
+curve(as.numeric(p$par_g) / ( as.numeric(p$par_b1) + as.numeric(p$par_b2) * x ) * ( as.numeric(p$par_ll) - Pfs[1] ) ,
+      xlim=c(0,as.numeric(p$MAXLEN)),
+      ylim=c(0, as.numeric(p$par_g) / ( as.numeric(p$par_b1) ) * ( as.numeric(p$par_ll))),
+      ylab="R",
+      xlab="length",
+      las=1,
+      col=colPf[1],
+      main=p$par_ID
+)
+
+for(i in 2:length(Pfs)) curve(as.numeric(p$par_g) / ( as.numeric(p$par_b1) + as.numeric(p$par_b2) * x ) * ( as.numeric(p$par_ll) - Pfs[i] ) ,
+                              add=T,
+                              col=colPf[i]
+)
+legend("topright", 
+       title = expression(P[fold]), 
+       lwd=2, 
+       col=colPf,
+       legend=Pfs, 
+       ncol=2)
+```
+
+## Enzimatic activities
+
+Should make a plot where show:
+  
+  * number of activities
+* motifs: 2D structure, necessary seqs
+* plot activities based on number of all free bases / number of free G/C
+
+it is too much time
