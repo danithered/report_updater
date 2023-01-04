@@ -54,7 +54,7 @@ ssh <- ifelse(nchar(params$ssh)==0, NA, params$ssh)
 ```
 
 
-```{r load_funcs, cache=T}
+```{r load_funcs, cache=T, message=FALSE}
 source("../functions.R")
 source("../rnarep.R")
 source("../grid_plot.R")
@@ -108,7 +108,7 @@ collegend <- function(..., min=NA, max=NA, pal){
 ```
 
 
-```{r get_params, cache=T}
+```{r get_params, message=FALSE, cache=TRUE, include=FALSE}
 check_dir(params$cache.path)
 
 try({
@@ -263,12 +263,12 @@ par(par.orig) #restore default parameters
 
 ```
 
-```{r}
+```{r, cache.rebuild=output_refreshed, cache=T}
 levels(longtable$meas) <- Mnames[levels(longtable$meas)]
 ```
 
 
-```{r time_everything2, cache=!output_refreshed}
+```{r time_everything2, cache=T, cache.rebuild=output_refreshed}
 ggplot(data=longtable, aes(x=time, y=value))+
 	geom_line(col="red") +
 	facet_grid(meas~enz_type, scales="free_y", labeller = label_parsed)+
@@ -288,8 +288,9 @@ barplot( as.numeric(table[table$time==0,paste0("no_A", 0:3)]),
 
 ## number of activities in inic pool
 
-```{r inicpool_no_acts, cache=!output_refreshed}
+```{r inicpool_no_acts, cache=T, cache.rebuild=output_refreshed, warning=FALSE}
 barplot( as.numeric(table[table$time==0, needed_cols])*as.numeric(p$par_ncol)*as.numeric(p$par_nrow) ,  
+         las=2,
          names.arg = needed_cols#,
          #main=paste("time:", tt, "res:", whattosee)
          )
@@ -324,6 +325,7 @@ if(length(alltimes) != length(readytimes) | params$force){ # have to update
   ttt = alltimes[!alltimes %in% readytimes]
   cacheit = F
   saveRDS(alltimes, mergepath(params$cache.path, "read_states.Rds"))
+  message(paste("Reading in", length(ttt), "outputs in range of", min(as.numeric(ttt)), "-", max(as.numeric(ttt)) ))
 } else { # no need to update
   ttt = c()
   cacheit = T
@@ -342,7 +344,7 @@ if(file.exists(mergepath(params$cache.path, "save_vals.Rds"))){
 }
 ```
 
-```{r read_states_and_calculate, eval=length(ttt)>0}
+```{r read_states_and_calculate, eval=length(ttt)>0, message=FALSE}
 for(tt in ttt ){
   # read in file
   f <- get_file(paste0(tt, ".tsv"), path=mergepath(params$dir, "SAVE/"), ssh=ssh, ssh_key = params$ssh_key)
@@ -420,8 +422,8 @@ for(tt in ttt ){
 <<plot_hist>>
 <<hist_mfegg>>
 <<hist_Pdeg>>
-#<<propsbars>>
-#<<propsall>>
+<<propsbars>>
+<<propsall>>
 <<kompl_easy>>
 }
 
@@ -429,7 +431,7 @@ for(tt in ttt ){
 saveRDS(list(Mmax=Mmax, Rmax=Rmax, trans_time=trans_time, varcors=varcors), mergepath(params$cache.path, "save_vals.Rds"))
 ```
 
-```{r read_states_for_maps, eval=length(tt)>0}
+```{r read_states_for_maps, eval=length(ttt)>0, message=FALSE}
 for(tt in ttt ){
   # read in file
   f <- get_file(paste0(tt, ".tsv"), path=mergepath(params$dir, "SAVE/"), ssh=ssh, ssh_key = params$ssh_key)
@@ -473,7 +475,7 @@ for(tt in ttt ){
 }
 ```
 
-```{r plot_hist, eval=FALSE}
+```{r plot_hist, eval=FALSE, message=FALSE, warning=FALSE}
 par(mfrow=c(1,2), oma=c(0,0,2,0))
 
 #check targetdir
@@ -501,7 +503,7 @@ try({
 })
 ```
 
-```{r hist_mfegg, eval=F}
+```{r hist_mfegg, eval=F, message=FALSE, warning=FALSE}
 #check targetdir
 targetdir <- mergepath(params$cache.path, "hist_mfegg/")
 check_dir(targetdir)
@@ -520,7 +522,7 @@ try(ggsave(mergepath(targetdir, paste0(tt, ".png")),
 
 ```
 
-```{r hist_Pdeg, eval=F}
+```{r hist_Pdeg, eval=F, message=FALSE, warning=FALSE}
 #check targetdir
 targetdir <- mergepath(params$cache.path, "hist_Pdeg/")
 check_dir(targetdir)
@@ -535,7 +537,7 @@ try(ggsave(mergepath(targetdir, paste0(tt, ".png")),
 
 ```
 
-```{r propsbars, eval=F}
+```{r propsbars, eval=F, message=FALSE, warning=FALSE}
 #check targetdir
 targetdir <- mergepath(params$cache.path, "propsbars/")
 check_dir(targetdir)
@@ -563,7 +565,7 @@ try({
       scale_x_discrete(labels=parse( text= levels(stlong$type) ))+
       labs(title=tt, caption=whattosee)
   )
-}
+})
 ```
 
 ```{r propsall, eval=F, warning=FALSE, fig.height=12, fig.width=8}
@@ -754,7 +756,7 @@ try({
 }) #try
 ```
 
-```{r kompl, eval=F}
+```{r kompl, eval=F, message=FALSE, warning=FALSE}
 #check targetdir
 targetdir <- mergepath(params$cache.path, "kompl/")
 check_dir(targetdir)
@@ -831,7 +833,7 @@ try({
 dev.off()
 ```
 
-```{r kompl_easy, eval=F, fig.height=12, fig.width=8}
+```{r kompl_easy, eval=F, fig.height=12, fig.width=8, message=FALSE, warning=FALSE}
 #check targetdir
 targetdir <- mergepath(params$cache.path, "kompl/")
 check_dir(targetdir)
@@ -915,7 +917,7 @@ try({
 dev.off()
 ```
 
-```{r maps, eval=F, fig.height=4.5, fig.width=7}
+```{r maps, eval=F, fig.height=4.5, fig.width=7, message=FALSE, warning=FALSE}
 #check targetdir
 targetdir <- mergepath(params$cache.path, "maps/")
 check_dir(targetdir)
@@ -1088,86 +1090,57 @@ check_dir(targetdir)
 vidnames <- c("simple_hist", "hist_mfegg", "hist_Pdeg", "propsbars", "propsall", "kompl", "maps")
 for(vid in vidnames){
   try(system(
-    paste0("ffmpeg -framerate 20 -pattern_type glob -i ", 
+    paste0("ffmpeg -framerate 20 -i ", 
                 mergepath(params$cache.path, vid, "/"), 
                 "*.png ", 
+                "-pattern_type glob -vcodec libx264 -pix_fmt yuv420p ",
+                '-vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" -y ', #to handle not divisible by 2 problem
                 mergepath(targetdir, paste0(vid, ".mp4") ))  
   ))
 }
 ```
 
 
+## Histogram
+
 ```{r cache=T, results='asis'}
-addVideo(mergepath(params$cache.path, "animations", "simple_hist.mp4"), loop=T)
-```
-
-
-
-# OLD stuff
-
-```{r , fig.show='animate', eval=F, animation.hook="ffmpeg", ffmpeg.format="mp4", interval=0.5, aniopts="controls,loop", cache=TRUE, dependson="read_data_save"}
-par(mfrow=c(1,2), oma=c(0,0,2,0))
-for(tt in ttt )
-{ 
-  #tt=0
-  st <- state[[paste0("t", tt)]] # get the state
-  types <- levels(st$type_f)
-  
-  #### PLOTS ####
-  
-  # histogram of mfe
-  try({
-    hist(st[st$type > 0,"mfe"], 
-         #main = paste("time:", tt, "res:", whattosee) , 
-         main = "" , 
-         xlim=c(0, -35),
-         ylim=c(0, as.numeric(p$par_ncol) * as.numeric(p$par_nrow)/15 )
-    )
-    hist(st[st$type > 0,"M"], 
-         #main = paste("time:", tt, "res:", whattosee) 
-         main = "",
-         xlim=c(0, 2000), 
-         ylim=c(0, as.numeric(p$par_ncol) * as.numeric(p$par_nrow)/15 )
-    )
-    
-    mtext(paste("time:", tt, "res:", whattosee), outer=T)
-  })
-  
-}
+invisible(addVideo(mergepath(params$cache.path, "animations", "simple_hist.mp4"), loop=T, centered = T))
 ```
 
 
 ## MFE
 
-```{r cache=T}
-addVideo(mergepath(params$cache.path, "animations", "hist_mfegg.mp4"), loop=T)
+```{r cache=T, results='asis'}
+invisible(addVideo(mergepath(params$cache.path, "animations", "hist_mfegg.mp4"), loop=T, width = 320, centered = T))
 ```
 
 ## Pdeg
 
-```{r cache=T}
-addVideo(mergepath(params$cache.path, "animations", "hist_Pdeg.mp4"), loop=T)
+```{r cache=T, results='asis'}
+invisible(addVideo(mergepath(params$cache.path, "animations", "hist_Pdeg.mp4"), width = 320, centered = T))
 ```
 
 ## Maps
 
-```{r cache=T}
+```{r cache=T, results='asis'}
 addVideo(mergepath(params$cache.path, "animations", "maps.mp4"), loop=T)
 ```
 
 ## Properties of types
 
-```{r cache=T}
-addVideo(mergepath(params$cache.path, "animations", "propsbars.mp4"), loop=T)
+```{r cache=T, results='asis'}
+invisible(addVideo(mergepath(params$cache.path, "animations", "propsbars.mp4"), loop=T, width = 320, centered = T))
 ```
 
-```{r cache=T}
-addVideo(mergepath(params$cache.path, "animations", "propsall.mp4"), loop=T)
+## Violins
+
+```{r cache=T, results='asis'}
+invisible(addVideo(mergepath(params$cache.path, "animations", "propsall.mp4"), loop=T, width = 320, centered = T))
 ```
 
 # Komplementer plot
 
-```{r cache=T}
+```{r cache=T, results='asis'}
 addVideo(mergepath(params$cache.path, "animations", "kompl.mp4"), loop=T)
 ```
 

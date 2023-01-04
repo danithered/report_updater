@@ -483,7 +483,7 @@ check_dir <- function(targetdir){
   return(TRUE)
 }
 
-addSound <- function(filename=NA, type=NA, message="Your browser does not supports playing audio files!", centered=F, controls=TRUE, autoplay=FALSE){
+addSound <- function(filename=NA, type=NA, message="Your browser does not support playing audio files!", centered=F, controls=TRUE, autoplay=FALSE){
   if(is.na(type)) {
     type <- lapply(strsplit(filename, ".", fixed=TRUE), 
                    function(x) switch(x[length(x)]
@@ -512,12 +512,13 @@ addSound <- function(filename=NA, type=NA, message="Your browser does not suppor
   else writeLines("no audio filename given!")
 }
 
-addVideo <- function(filename=NA, type=NA, message="Your browser does not supports playing video files!", centered=F, controls=TRUE, autoplay=FALSE, loop=T){
+addVideo <- function(filename=NA, type=NA, message="Your browser does not support playing video files!", centered=F, controls=TRUE, autoplay=FALSE, loop=T, width=NA, height=NA, muted=F){
   if(is.na(type)) {
     type <- lapply(strsplit(filename, ".", fixed=TRUE), 
                    function(x) switch(x[length(x)]
                                       , mp4="video/mp4"
                                       , MP4="video/mp4"
+                                      , webm="video/webm"
                    ) 
     )
   }
@@ -526,8 +527,11 @@ addVideo <- function(filename=NA, type=NA, message="Your browser does not suppor
     output <- c(ifelse(centered, '<div class="centered">', "")
                 , paste0("<video", 
                          ifelse(controls, " controls",""), 
+                         ifelse(muted, " muted",""), 
                          ifelse(loop, " loop",""), 
                          ifelse(autoplay, " autoplay",""), 
+                         ifelse(is.na(width), "", paste0(' width="', width, '"') ), 
+                         ifelse(is.na(height), "", paste0(' width="', height, '"') ), 
                          ">", collapse = "")
                 , paste0 ('<source src="', filename, '" type="', type, '">')
                 , message
