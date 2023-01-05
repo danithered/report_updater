@@ -276,6 +276,7 @@ ggplot(data=longtable, aes(x=time, y=value))+
         axis.text.x = element_text(angle=60, hjust=1))
 ```
 
+# Inic pool
 
 ## frequency of promiscous replicators in the inic pool
 
@@ -344,7 +345,7 @@ if(file.exists(mergepath(params$cache.path, "save_vals.Rds"))){
 }
 ```
 
-```{r read_states_and_calculate, eval=length(ttt)>0, message=FALSE}
+```{r read_states_and_calculate, eval=length(ttt)>0, message=FALSE, warning=FALSE}
 for(tt in ttt ){
   # read in file
   f <- get_file(paste0(tt, ".tsv"), path=mergepath(params$dir, "SAVE/"), ssh=ssh, ssh_key = params$ssh_key)
@@ -750,7 +751,7 @@ try({
     )
     
     
-    ggsave(mergepath(targetdir, paste0(tt, ".png")), 
+    ggsave(mergepath(targetdir, paste0(tt, ".png")), width=8, height = 12, 
            plot_grid( plotlist= gplots, align = "v", ncol = 1, rel_heights = c(1.5,1,1,1,1,2) ))
   } # if there is data
 }) #try
@@ -837,7 +838,7 @@ dev.off()
 #check targetdir
 targetdir <- mergepath(params$cache.path, "kompl/")
 check_dir(targetdir)
-png(mergepath(targetdir, paste0(tt, ".png")))
+png(mergepath(targetdir, paste0(tt, ".png")), width=8, height = 12, units="in", res=200)
 
 try({
     par(mfrow=c(2,1))
@@ -895,8 +896,8 @@ try({
     )
     axis(1, at= kell, labels=enzN(kell2), las=2)
     axis(2, at= kell, labels=enzN(kell2), las=1)
-    abline(h= kell+0.5)
-    abline(v= kell+0.5)
+    #abline(h= kell+0.5)
+    #abline(v= kell+0.5)
     
     image(kell, kell,  
           log(pairs2+1), 
@@ -911,8 +912,8 @@ try({
     
     axis(1, at= kell, labels=enzN(kell2), las=2)
     axis(2, at= kell, labels=enzN(kell2), las=1)
-    abline(h= kell+0.5)
-    abline(v= kell+0.5)
+    #abline(h= kell+0.5)
+    #abline(v= kell+0.5)
   })
 dev.off()
 ```
@@ -921,7 +922,7 @@ dev.off()
 #check targetdir
 targetdir <- mergepath(params$cache.path, "maps/")
 check_dir(targetdir)
-png(mergepath(targetdir, paste0(tt, ".png")))
+png(mergepath(targetdir, paste0(tt, ".png")), width = 7, height = 4.5, units = "in", res=200)
 
 par(mfrow=c(2,4), mar=c(0.5,0.5,0.5,0.5), xpd=NA, oma=c(3,0,4,0))
 plot.new()
@@ -1046,8 +1047,8 @@ dev.off()
 ```
 
 ```{r balazs_plot_data, eval=F}
-trans <- table(st[, c("type","type_prev")])
-trans <- trans[,colnames(trans)!=-1] #to filter out new mutatants (if from prev data)
+trans <- table(st[st$type_prev != -1, c("type","type_prev")])
+#trans <- trans[,colnames(trans)!=-1] #to filter out new mutatants (if from prev data)
 
 for(from in rownames(trans) ) for(to in colnames(trans) ){
   #from = rownames(trans)[2]; to = colnames(trans)[2]
@@ -1123,7 +1124,7 @@ invisible(addVideo(mergepath(params$cache.path, "animations", "hist_Pdeg.mp4"), 
 ## Maps
 
 ```{r cache=T, results='asis'}
-addVideo(mergepath(params$cache.path, "animations", "maps.mp4"), loop=T)
+invisible(addVideo(mergepath(params$cache.path, "animations", "maps.mp4"), loop=T, width = 320, centered = T))
 ```
 
 ## Properties of types
@@ -1141,12 +1142,12 @@ invisible(addVideo(mergepath(params$cache.path, "animations", "propsall.mp4"), l
 # Komplementer plot
 
 ```{r cache=T, results='asis'}
-addVideo(mergepath(params$cache.path, "animations", "kompl.mp4"), loop=T)
+invisible(addVideo(mergepath(params$cache.path, "animations", "kompl.mp4"), loop=T, width = 320, centered = T))
 ```
 
 # Balazs plot
 
-```{r balazs_plot, cache=TRUE, cache.rebuild=!cacheit}
+```{r balazs_plot, cache=TRUE, cache.rebuild=!cacheit, message=FALSE, warning=FALSE}
 if(nrow(trans_time) > 0) try({
   ggplot(trans_time, aes(x=time, y= n, colour=  as.character(enzN(to))  ))+
     geom_line()+
@@ -1157,7 +1158,7 @@ if(nrow(trans_time) > 0) try({
 
 # Correlations
 
-```{r valcors, cache=TRUE, cache.rebuild=!cacheit}
+```{r valcors, cache=TRUE, cache.rebuild=!cacheit, message=FALSE,warning=FALSE}
 vars <- c("mfe", "M", "R", "A")
 
 try({
