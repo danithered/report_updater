@@ -44,7 +44,10 @@ get_mtime <- (function(target=NULL, path="~/", ssh=NA, ssh_key="~/.ssh/id_rsa"){
                                                          file, 
                                                          ";if [ -f $tf ]; then echo file; else if [ -d $tf ]; then echo dir; else echo FALSE; fi; fi") 
     ))[1]
-    if(!type %in% c("file", "dir")) return(NA)
+    if(!type %in% c("file", "dir")) {
+      ssh_disconnect(ssh_con)
+      return(NA)
+    }
     
     if(is.null(target)){
       out <- capture.output(ssh_exec_wait(ssh_con, paste( "find", file, "-type f -exec stat \\{} --printf=\"%y\n\" \\; | sort -n -r | head -n 1" ) ))[1]
@@ -101,6 +104,17 @@ get_file <- function(target, path="~/", ssh=NA, ssh_key="~/.ssh/id_rsa", fast=T,
         warning("Could not establish shh connection")
         return(NA)
       }
+      
+      #check if exists
+      target_status = capture.output(ssh_exec_wait(ssh_con, paste0("tf=", 
+                          paste(path, target, sep=ifelse(nchar(path) > 0 & substr(path, nchar(path), nchar(path)) != "/", "/", "")), 
+                          ";if [ -f $tf ]; then echo file; else if [ -d $tf ]; then echo dir; else echo FALSE; fi; fi") 
+      ))[1]
+      if(target_status != "file") {
+        ssh_disconnect(ssh_con)
+        return(NA)
+      }
+      
       #download
       scp_download(ssh_con, 
                    files= paste(path, target, sep=ifelse(nchar(path) > 0 & substr(path, nchar(path), nchar(path)) != "/", "/", "")),
@@ -108,6 +122,7 @@ get_file <- function(target, path="~/", ssh=NA, ssh_key="~/.ssh/id_rsa", fast=T,
       )
       #disconnect
       ssh_disconnect(ssh_con)
+      #if(is.null(down_status)) return(NA) else 
       return( tofile )
     }
   })
