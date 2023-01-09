@@ -10,13 +10,13 @@ output:
 params:
   cache.path:
     label: Set path of cache folder
-    value: report_cache/
+    value: "/var/www/html/oktato/A7long.3_26_281/report_cache"
   dir:
     label: Path to data dir
-    value: "/home/danielred/data/programs/mcrs_to_scm/OUT/A7retest.6_5/"
+    value: "/home/danielred/data/programs/mcrs_scm/OUT/A7long.3_26_281/"
   ssh:
     label: SSH address in format of user@domain:port
-    value: ""
+    value: "danielred@10.30.0.14"
   ssh_key:
     label: Location of ssh public key
     value: ~/.ssh/id_rsa
@@ -87,14 +87,14 @@ source("../functions.R")
 # simulation properties
 
 ```{r get_params, cache=T}
-pf <- get_file("SAVE/parameters.txt", params$dir, ssh=ssh, ssh_key = params$ssh_key)
+pf <- get_file("parameters.txt", mergepath(params$dir, "SAVE/"), ssh=ssh, ssh_key = params$ssh_key)
   if(!is.na(pf)){
     t <- readLines(pf)
     t <- read.table( text = sub(" ", "\t", t) , header=F, sep="\t")
     
     if(!is.na(params$ssh)) file.remove(pf)
     
-    write.table(t, file=mergepath(params$cache.path, "parameters.tsv"), sep="\t", col.names = F, row.names = F)
+    try(write.table(t, file=mergepath(params$cache.path, "parameters.tsv"), sep="\t", col.names = F, row.names = F))
     
     p <- as.list(as.character(t$V2))
     names(p) <- t$V1
