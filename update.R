@@ -40,14 +40,10 @@ for(jr in 1:nrow(jobs)){
   }, error = function(e) {next})
   
   #try to compile report
-  wheretocache = paste(job$targetdir, 
-                  "report_cache", 
-                  sep=ifelse(nchar(job$targetdir) > 0 & 
-                               substr(job$targetdir, 
-                                      nchar(job$targetdir), 
-                                      nchar(job$targetdir)) != "/",
-                             "/",
-                             ""))
+  wheretocache = mergepath(job$targetdir, 
+              "report_cache/")
+  check_dir(wheretocache)
+  
   # checkif it has been modified since last - if not then update!
   if(is.na(lastdata)[1]) {
     curr_mtime <- NA

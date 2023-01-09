@@ -86,7 +86,8 @@ source("../functions.R")
 
 # simulation properties
 
-```{r get_params, cache=T}
+```{r get_params, cache=T, message=FALSE}
+check_dir(params$cache.path)
 pf <- get_file("parameters.txt", mergepath(params$dir, "SAVE/"), ssh=ssh, ssh_key = params$ssh_key)
   if(!is.na(pf)){
     t <- readLines(pf)
@@ -94,7 +95,7 @@ pf <- get_file("parameters.txt", mergepath(params$dir, "SAVE/"), ssh=ssh, ssh_ke
     
     if(!is.na(params$ssh)) file.remove(pf)
     
-    try(write.table(t, file=mergepath(params$cache.path, "parameters.tsv"), sep="\t", col.names = F, row.names = F))
+    try(write.table(t, file="parameters.tsv", sep="\t", col.names = F, row.names = F))
     
     p <- as.list(as.character(t$V2))
     names(p) <- t$V1
