@@ -172,6 +172,8 @@ ggplotly(ggplot(table_long, aes(x=time, y=val))+
   facet_wrap(vars(what), scales = "free_y", ncol=2)#+
   #labs(caption = Sys.time())
 )
+
+rm(table_long)
 ```
 
 ![](`r knitr::fig_chunk('plot_everything', 'png')`)
@@ -191,6 +193,8 @@ ggplotly(ggplot(table, aes(x=time, y=mean_M ))+
   geom_ribbon(aes(ymin=mean_M - sd_M/divide, ymax=mean_M + sd_M/divide), fill="grey")+
   geom_line()
 ) 
+
+rm(table)
 ```
 
 ![](`r knitr::fig_chunk('plot_M', 'png')`)
@@ -202,6 +206,8 @@ ggplotly(ggplot( table_A, aes(x=time, y= number, fill=type))+
   geom_area()+
   coord_cartesian(ylim=c(0, as.numeric(p$par_poolsize) * as.numeric(p$par_splitfrom)))
 ) 
+
+rm(table_A)
 ```
 
 ![](`r knitr::fig_chunk('plot_noA', 'png')`)
