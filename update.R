@@ -49,6 +49,9 @@ for(jr in 1:nrow(jobs)){
     curr_mtime <- NA
     fromlast <- F
   } else {
+    #nas <- by(lastdata$jobs, seq_len(nrow(lastdata$jobs)), function(x) all(is.na(x)))
+    lastdata$jobs <- lastdata$jobs[apply(lastdata$jobs,1,function(x) !all(is.na(x))),]
+    
     curr_mtime <- get_mtime(path=job$path, ssh=job$ssh, ssh_key=job$ssh_key)
     fromlast <- apply(lastdata$jobs, 1, function(x) all(x==job, na.rm = T))  
   }
