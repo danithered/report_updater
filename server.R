@@ -41,7 +41,9 @@ shinyServer(function(input, output) {
       , selection=list(mode = 'single', 
                        selected = min(which(data$jobs$targetdir %in% names(data$params))), 
                        target = 'row', 
-                       selectable = which(data$jobs$targetdir %in% names(data$params)) )
+                       #selectable = which(data$jobs$targetdir %in% names(data$params)) 
+                       selectable = T
+                       )
       , editable=F)
     
     #UI parameters
@@ -85,7 +87,11 @@ shinyServer(function(input, output) {
     
     output$par <- renderTable({
       r <- input$parameters_rows_selected
-      data$params[[ data$jobs[r,"targetdir"] ]]
+      if(is.na(r)) {
+        data.table(parameter=NA, value=NA)
+      } else {
+        data$params[[ data$jobs[r,"targetdir"] ]]
+      }
     })
     
     output$updatetime <- renderPrint(data$last_updated)

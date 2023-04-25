@@ -1,5 +1,6 @@
 dir	ssh	ssh_key
 /home/danielred/data/programs/mcrs_scm/OUT/	danielred@10.30.0.12	~/.ssh/id_rsa
 /home/danielred/data/programs/mcrs_scm/OUT/	danielred@10.30.0.14	~/.ssh/id_rsa
+/home/danielred/data/programs/mcrs_scm/OUT/	danielred@193.224.32.1:20343	~/.ssh/id_rsa
 /home/danielred/data/programs/mcrs_chromosome/OUT/	danielred@10.30.0.12	~/.ssh/id_rsa
 /home/danielred/data/programs/mcrs_chromosome/OUT/	danielred@10.30.0.14	~/.ssh/id_rsa
