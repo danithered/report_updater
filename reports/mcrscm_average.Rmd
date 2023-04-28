@@ -10,13 +10,13 @@ output:
 params:
   cache.path:
     label: Set path of cache folder
-    value: "/var/www/html/oktato/A7long.3_26_281/report_cache"
+    value: "/home/danielred/data/programs/mcrs_to_scm/OUT/A7long.1_6/temp/"
   dir:
     label: Path to data dir
-    value: "/home/danielred/data/programs/mcrs_scm/OUT/A7long.3_26_281/"
+    value: "/home/danielred/data/programs/mcrs_to_scm/OUT/A7long.1_6/"
   ssh:
     label: SSH address in format of user@domain:port
-    value: "danielred@10.30.0.14"
+    value: ""
   ssh_key:
     label: Location of ssh public key
     value: ~/.ssh/id_rsa
@@ -80,13 +80,13 @@ ssh <- ifelse(nchar(params$ssh)==0, NA, params$ssh)
 
 ```
 
-```{r load_funcs, cache=T}
+```{r load_funcs, message=FALSE, cache=TRUE}
 source("../functions.R")
 ```
 
 # simulation properties
 
-```{r get_params, cache=T, message=FALSE}
+```{r get_params, message=FALSE, cache=TRUE, include=FALSE}
 check_dir(params$cache.path)
 pf <- get_file("parameters.txt", mergepath(params$dir, "SAVE/"), ssh=ssh, ssh_key = params$ssh_key)
   if(!is.na(pf)){
@@ -166,7 +166,7 @@ table_A <- xfun::cache_rds({
 
 ## Properties of enzyme types
 
-```{r plot_everything, eval=output_refreshed, fig.show='hide'}
+```{r plot_everything, eval=output_refreshed, fig.show='hide', eval=F}
 ggplotly(ggplot(table_long, aes(x=time, y=val))+
   geom_line(aes(color=type))+
   facet_wrap(vars(what), scales = "free_y", ncol=2)#+
@@ -180,11 +180,13 @@ rm(table_long)
 
 ## Cell diagnostics
 
-```{r, echo=F, eval=T}
+```{r Metplot, echo=F, eval=output_refreshed, fig.show='hide'}
 ggplot(table, aes(x=time, y=no_alive, color=replicators))+
    geom_point()+
    labs(x="Time [generations]", y="Number of vesicles with an active metabolism")
 ```
+
+![](`r knitr::fig_chunk('Metplot', 'png')`)
 
 ```{r plot_M, eval=output_refreshed, fig.show='hide'}
 divide = sqrt(as.numeric(p$par_poolsize))
@@ -211,3 +213,52 @@ rm(table_A)
 ```
 
 ![](`r knitr::fig_chunk('plot_noA', 'png')`)
+
+# Unique figures
+
+
+```{r check_savefiles}
+if(file.exists("opened.Rds")) {
+  opened <- readRDS("opened.Rds")
+} else {
+  opened <- character()
+}
+
+savefiles <- grep("*xml", get_filelist(path= mergepath(params$dir,"SAVE/"), ssh=ssh, ssh_key = params$ssh_key), value = T)
+toread <- savefiles[!savefiles %in% opened]
+
+if(params$force){
+  toread <- savefiles
+}
+
+if(length(toread) > 0){
+  newsave = T
+} else {
+  newsave = F
+}
+
+```
+
+
+```{r load_savefiles, eval=newsave}
+if(file.exists("opened.Rds") & !params$force) {
+  savedata <- readRDS("savedata.Rds")
+} else {
+  savedata <- list()
+}
+
+for(savefile in toread){
+  message("Reading in file ", savefile)
+  
+  # do stuff
+  
+  # finish
+  opened <- c(opened, savefile)
+}
+
+# write opned.Rds
+saveRDS(opened, "opened.Rds")
+
+# write savedata.Rds
+saveRDS(savedata, "savedata.Rds")
+```
