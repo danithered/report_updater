@@ -82,6 +82,9 @@ ssh <- ifelse(nchar(params$ssh)==0, NA, params$ssh)
 
 ```{r load_funcs, message=FALSE, cache=TRUE}
 source("../functions.R")
+source("../xml.R")
+source("../composition.R")
+source("../rnarep.R")
 ```
 
 # simulation properties
@@ -167,6 +170,10 @@ table_A <- xfun::cache_rds({
 ## Properties of enzyme types
 
 ```{r plot_everything, eval=output_refreshed, fig.show='hide', eval=F}
+if(nrow(table_long) > 100000){
+  warning("Too much data, quitting!")
+  knitr::knit_exit()
+}
 ggplotly(ggplot(table_long, aes(x=time, y=val))+
   geom_line(aes(color=type))+
   facet_wrap(vars(what), scales = "free_y", ncol=2)#+
@@ -245,12 +252,28 @@ if(file.exists("opened.Rds") & !params$force) {
   savedata <- readRDS("savedata.Rds")
 } else {
   savedata <- list()
+  savedata$mosaic <- data.frame()
 }
 
 for(savefile in toread){
+  # Read in file
   message("Reading in file ", savefile)
   
-  # do stuff
+  # mosaic data
+  try({
+    comp = getLastComposition(savefile, exclude = T)
+    
+    # do stuff
+    oo <- do.call(rbind, lapply(comp, function(x, source) {
+      data.frame(n=c(x),
+                 type=names(x),
+                 source=source,
+                 sA= comp2sA(as.numeric(names(x))) )
+      
+    }, source = savefile))
+    savedata$mosaic <- rbind(savedata$mosaic, oo)
+    rm(oo)
+  }, silent = T)
   
   # finish
   opened <- c(opened, savefile)
@@ -262,3 +285,26 @@ saveRDS(opened, "opened.Rds")
 # write savedata.Rds
 saveRDS(savedata, "savedata.Rds")
 ```
+
+```{r plot_mosaic_n}
+# dd$sA <- sapply(as.numeric(dd$type), function(x) {
+#   types <- burstComposit(x)
+#   paste(type2sA(types), collapse = "/")
+# })
+
+
+ddd = savedata$mosaic |> group_by(source, sA) |> summarise(n=sum(n))
+ggplot(ddd)+
+  geom_raster(aes(x=source, y=sA, fill=n))+
+  labs(x="time", y="simple types")
+```
+
+
+```{r plot_mosaic_freq}
+ddd = ddd |> group_by(source) |> mutate(freq=n/sum(n))
+
+ggplot(ddd)+
+  geom_raster(aes(x=source, y=sA, fill=freq))+
+  labs(x="time", y="simple types")
+```
+

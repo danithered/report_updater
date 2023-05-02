@@ -195,3 +195,31 @@ isAlive <- function(pool, noEA=7){
     , 2, any))
 }
 
+type2sA <- Vectorize(function(x){
+  if(x==0) return("PARA")
+  if(x==-1) return("empty")
+  
+  m <- ceiling(log(x,2))
+  acts <- c()
+  
+  for(i in m:0){
+    if(x %/% 2^i != 0){
+      acts <- c(acts, i)
+      x <- x-2^i
+      if(x == 0) break
+    }
+  }
+  if(length(acts) > 1) return( "POLI" )
+  else return( "MONO" )
+  
+})
+
+comp2sA <- Vectorize(function(x, noEA=7){
+  if(x==0) return("parazite")
+  if(x<0) return("empty")
+  
+  types <- sort(type2A(burstComposit(x, noEA = noEA)))
+  
+  return(paste(ifelse(types==0, "PARA", ifelse(types==1, "MONO", "POLI")), collapse = "/"))
+  
+})
