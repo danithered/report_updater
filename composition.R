@@ -105,8 +105,8 @@ getInputCompositions <- function(files, noEA=7, exclude=T, onlyalive=F){
   return(out)
 }
 
-getLastComposition <- function(file, noEA=7, exclude=T, onlyalive=F){
-  scm = get_my_data(file)
+getLastComposition <- function(file, noEA=7, exclude=T, onlyalive=F, ...){
+  scm = get_my_data(file, ...)
   out<-list()
   
   for(row in 1:nrow(scm$table) ){

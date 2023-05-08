@@ -10,13 +10,13 @@ output:
 params:
   cache.path:
     label: Set path of cache folder
-    value: "/home/danielred/data/programs/mcrs_to_scm/OUT/A7long.1_6/temp/"
+    value: "/home/danielred/data/programs/mcrs_to_scm/OUT/"
   dir:
     label: Path to data dir
-    value: "/home/danielred/data/programs/mcrs_to_scm/OUT/A7long.1_6/"
+    value: "/home/danielred/data/programs/mcrs_scm/OUT/bubble_start_partest_656/"
   ssh:
     label: SSH address in format of user@domain:port
-    value: ""
+    value: "danielred@193.224.32.1:20343"
   ssh_key:
     label: Location of ssh public key
     value: ~/.ssh/id_rsa
@@ -165,13 +165,17 @@ table_A <- xfun::cache_rds({
 
 ```
 
+```{r, eval=F}
+ggplot(table_long)+
+  geom_line(aes(x=time, y=no_last_splits))
+```
 
 
 ## Properties of enzyme types
 
-```{r plot_everything, eval=output_refreshed, fig.show='hide', eval=F}
-if(nrow(table_long) > 100000){
-  warning("Too much data, quitting!")
+```{r plot_everything, eval=output_refreshed, fig.show='hide'}
+if(nrow(table_long) > 2000000){
+  warning("Too much data (", nrow(table_long), " lines), quitting!")
   knitr::knit_exit()
 }
 ggplotly(ggplot(table_long, aes(x=time, y=val))+
@@ -206,8 +210,6 @@ ggplotly(ggplot(table, aes(x=time, y=mean_M ))+
 rm(table)
 ```
 
-![](`r knitr::fig_chunk('plot_M', 'png')`)
-
 ## Relicators by promiscuity levels
 
 ```{r plot_noA, eval=output_refreshed, fig.show='hide'}
@@ -219,14 +221,16 @@ ggplotly(ggplot( table_A, aes(x=time, y= number, fill=type))+
 rm(table_A)
 ```
 
-![](`r knitr::fig_chunk('plot_noA', 'png')`)
-
 # Unique figures
 
 
 ```{r check_savefiles}
-if(file.exists("opened.Rds")) {
-  opened <- readRDS("opened.Rds")
+openedpath = mergepath(params$cache.path, "opened.Rds")
+savedpath = mergepath(params$cache.path, "savedata.Rds")
+
+
+if(file.exists(openedpath) & !params$force) {
+  opened <- readRDS(openedpath)
 } else {
   opened <- character()
 }
@@ -248,8 +252,8 @@ if(length(toread) > 0){
 
 
 ```{r load_savefiles, eval=newsave}
-if(file.exists("opened.Rds") & !params$force) {
-  savedata <- readRDS("savedata.Rds")
+if(file.exists(openedpath) & !params$force) {
+  savedata <- readRDS(savedpath)
 } else {
   savedata <- list()
   savedata$mosaic <- data.frame()
@@ -261,13 +265,13 @@ for(savefile in toread){
   
   # mosaic data
   try({
-    comp = getLastComposition(savefile, exclude = T)
+    comp = getLastComposition(filename(savefile), path=dirname(savefile), ssh=ssh, ssh_key = params$ssh_key, exclude = T)
     
     # do stuff
     oo <- do.call(rbind, lapply(comp, function(x, source) {
       data.frame(n=c(x),
                  type=names(x),
-                 source=source,
+                 source=as.numeric(strsplit(filename(source), ".", fixed = T)[[1]][1]),
                  sA= comp2sA(as.numeric(names(x))) )
       
     }, source = savefile))
@@ -280,18 +284,24 @@ for(savefile in toread){
 }
 
 # write opned.Rds
-saveRDS(opened, "opened.Rds")
+saveRDS(opened, openedpath)
 
 # write savedata.Rds
-saveRDS(savedata, "savedata.Rds")
+saveRDS(savedata, savedpath)
 ```
 
-```{r plot_mosaic_n}
+```{r plot_mosaic_n, cache.rebuild=newsave, message=FALSE}
 # dd$sA <- sapply(as.numeric(dd$type), function(x) {
 #   types <- burstComposit(x)
 #   paste(type2sA(types), collapse = "/")
 # })
 
+#sAcats = c("parazite","PARA/MONO","PARA/POLI","MONO/POLI","MONO/MONO","POLI/POLI")
+
+if(nrow(savedata$mosaic) == 0){
+  warning("new saved data is present, but could not load it! Aborting...")
+  knitr::knit_exit()
+}
 
 ddd = savedata$mosaic |> group_by(source, sA) |> summarise(n=sum(n))
 ggplot(ddd)+
