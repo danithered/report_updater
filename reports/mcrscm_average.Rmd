@@ -252,7 +252,7 @@ if(length(toread) > 0){
 
 
 ```{r load_savefiles, eval=newsave}
-if(file.exists(openedpath) & !params$force) {
+if(file.exists(savedpath) & !params$force) {
   savedata <- readRDS(savedpath)
 } else {
   savedata <- list()

@@ -1,11 +1,11 @@
-library(shiny)
-library(DT)
-library(ggplot2)
-library(plotly)
-library(RColorBrewer)
-library(dplyr)
-library(Polychrome)
-library(ssh)
+if(!require(shiny)){install.packages("shiny");library(shiny)}
+if(!require(DT)){install.packages("DT");library(DT)}
+if(!require(ggplot2)){install.packages("ggplot2");library(ggplot2)}
+if(!require(plotly)){install.packages("plotly");library(plotly)}
+if(!require(RColorBrewer)){install.packages("RColorBrewer");library(RColorBrewer)}
+if(!require(dplyr)){install.packages("dplyr");library(dplyr)}
+if(!require(Polychrome)){install.packages("Polychrome");library(Polychrome)}
+if(!require(ssh)){install.packages("ssh");library(ssh)}
 
 #Functions
 

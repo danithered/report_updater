@@ -1,5 +1,5 @@
-library(RRNA)
-library(plotrix)
+if(!require(RRNA)){install.packages("RRNA");library(RRNA)}
+if(!require(plotrix)){install.packages("plotrix");library(plotrix)}
 
 dirto <- function(to, from=c(0,0)){
   
