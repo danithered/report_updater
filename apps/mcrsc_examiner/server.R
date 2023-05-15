@@ -68,7 +68,8 @@ shinyServer(function(input, output, session) {
     # inic params
     params <- reactiveValues()
     params$cache.path <- "report_cache/"
-    params$dir <- "/home/danielred/data/programs/mcrs_scm/OUT/A7long.2_4/"
+    params$dir <- "/home/danielred/data/programs/mcrs_scm/OUT/bubble_start_partest_466/"
+    #params$ssh <- "danielred@193.224.32.1:20343"
     params$ssh <- NA
     params$ssh_key <- "~/.ssh/id_rsa"
     params$force <- FALSE
@@ -185,17 +186,17 @@ shinyServer(function(input, output, session) {
       if(no_acts_curr != no_acts()){ # number of activities changed
         # refresh no_acts
         no_acts(no_acts_curr)
-        
+
         # refresh activity colors
         actcols( brewer.pal(no_acts_curr, "Set1") )
-        
+
         # refresh replicator plot colorization
         pcols = list()
         for(col in actcols()) {
           pcols[[length(pcols)+1]] <- c("red", "coral")
         }
         col.pattern(pcols)
-        
+
         # refresh type colors
         no_types = 2^no_acts_curr-1
         no_types
@@ -213,7 +214,10 @@ shinyServer(function(input, output, session) {
     output$table <- renderDataTable( {
       tablev()[, -5] |> mutate_if(is.numeric, round, digits=2)
     }, 
-    selection =list(mode = 'single', selected = 1, target = 'row', selectable = T), 
+    selection =list(mode = 'single', 
+                    #selected = 1, 
+                    target = 'row', 
+                    selectable = T), 
     options = list(
       order = list(list(1, "desc"), list(3, "desc")),
       scrollY = 200,
@@ -232,8 +236,8 @@ shinyServer(function(input, output, session) {
         rep_table()[, startsWith(colnames(rep_table()), "act")]
       )
       out |> mutate_if(is.numeric, round, digits=2)
-    }, 
-    selection =list(mode = 'single', selected = 1, target = 'row', selectable = T), 
+    },
+    selection =list(mode = 'single', selected = 1, target = 'row', selectable = T),
     options = list(
       scrollY = 200,
       scroller = TRUE,
@@ -278,79 +282,126 @@ shinyServer(function(input, output, session) {
       )
     })
     
+    output$plot2 <- renderPlot( {
+      
+      typepool = lapply(1:nrow(tablev()), function(repnum) {
+        reps = tablev()[repnum,]$reps[[1]]
+        lapply(which(children(reps) == "item"), function(rnum){
+                  rep <- xml_child(reps, rnum)
+                  out <- list(type = get_child(rep, "repl.type", "double"),
+                              rev_type = get_child(rep, "repl.prev_type", "double")
+                  )
+                  return(as.data.frame(out))
+                }) |>
+          do.call(rbind, args = _)
+      }) |>
+        do.call(rbind, args = _)
+      
+      typepool |> 
+        group_by(type, rev_type) |> 
+        summarise(freq=n()) |> 
+        ggplot(aes(x=as.character(enzN(type, as.text=F)), y= as.character(enzN(rev_type)), fill=freq))+
+          geom_tile()+
+          scale_fill_gradient(name = "Number", low="yellow", high="red")+
+          scale_x_discrete(labels=scales::label_parse())+
+          scale_y_discrete(labels=scales::label_parse())+
+          coord_fixed()+
+          labs(x="Type", y="Type of complementer", 
+               #caption=paste(colnames(typepool), collapse = ",")
+               )+
+          theme_classic()+
+          theme(legend.pos="right")
+    })
+    
     # For cell
     output$legend <- renderPlot({
       plot.new()
     })
     
     output$hist_mfe <- renderPlot({
-      
+      if( length(input$table_rows_selected) == 0 ) return()
+
       #hist(rep_table()$mfe)
       ggplot(rep_table(), aes(x=mfe, fill=as.factor(type)))+
         geom_histogram()
-      
+
     })
-    
+
     output$hist_Pfold <- renderPlot({
       ggplot(rep_table(), aes(x=Pfold))+
         geom_histogram()+
         scale_fill_manual(values=typecols())+
         theme(legend.position = "none")
     })
-    
+
     output$hist_Pdeg <- renderPlot({
       ggplot(rep_table(), aes(x=Pdeg))+
         geom_histogram()
     })
-    
+
     output$hist_R <- renderPlot({
       ggplot(rep_table(), aes(R, fill=no_acts))+
         geom_histogram()
     })
-    
+
     output$hist_no_sites <- renderPlot({
       ggplot(rep_table(), aes(x=no_sites))+
         geom_histogram()
     })
-    
+
     output$hist_no_acts <- renderPlot({
       ggplot(rep_table(), aes(x=no_acts))+
         geom_histogram()
     })
     
     output$nice <- renderPlot({
-      types <- unique(rep_table()$type)
-      p <- list(par_noEA=7)
+      # types <- unique(rep_table()$type)
+      # p <- list(par_noEA=7)
+      # 
+      # # calculate table
+      # van <- rep_table()$seq != "N"
+      # odf <- data.frame(orig=rep_table()$type[van], rev=rep_table()$rev_type[van])
+      # odf$orig <- factor(odf$orig, levels = 0:(2^as.numeric(p$par_noEA)-1))
+      # odf$rev <- factor(odf$rev, levels = 0:(2^as.numeric(p$par_noEA)-1))
+      # pairs <- table(odf)
+      # 
+      # tv <- as.numeric(colnames(pairs))
+      # 
+      # kell <- 0:(2^as.numeric(p$par_noEA)-1)
+      # 
+      # #reorder by numbers of activities
+      # kell2 <- kell[order(type2noA(kell))]
+      # pairs <- pairs[as.character(kell2),]
+      # pairs <- pairs[,as.character(kell2)]
+      # 
+      # keep <- apply(pairs, 1, function(x) sum(x) > 0 ) | apply(pairs, 2, function(x) sum(x) > 0 )
+      # kell <- kell[keep]
+      # pairs <- pairs[keep, keep]
+      # 
+      # image(1:sum(keep), 1:sum(keep),  
+      #       pairs, 
+      #       xaxt="n", yaxt="n" ,
+      #       xlab="", ylab="",
+      #       col= heat.colors(100, rev = TRUE)[5:100]
+      # )
+      # axis(1, at= 1:sum(keep), labels=enzN(kell), las=2)
+      # axis(2, at= 1:sum(keep), labels=enzN(kell), las=1)
+      # text(rep(1:sum(keep), length(1:sum(keep))), rep(1:sum(keep), each=length(1:sum(keep))), c(pairs), cex=0.5 )
       
-      # calculate table
-      van <- rep_table()$seq != "N"
-      odf <- data.frame(orig=rep_table()$type[van], rev=rep_table()$rev_type[van])
-      odf$orig <- factor(odf$orig, levels = 0:(2^as.numeric(p$par_noEA)-1))
-      odf$rev <- factor(odf$rev, levels = 0:(2^as.numeric(p$par_noEA)-1))
-      pairs <- table(odf)
-      
-      tv <- as.numeric(colnames(pairs))
-      
-      kell <- 0:(2^as.numeric(p$par_noEA)-1)
-
-      #reorder by numbers of activities
-      kell2 <- kell[order(type2noA(kell))]
-      pairs <- pairs[as.character(kell2),]
-      pairs <- pairs[,as.character(kell2)]
-      
-      keep <- apply(pairs, 1, function(x) sum(x) > 0 ) | apply(pairs, 2, function(x) sum(x) > 0 )
-      kell <- kell[keep]
-      pairs <- pairs[keep, keep]
-    
-      image(1:sum(keep), 1:sum(keep),  
-            pairs, 
-            xaxt="n", yaxt="n" ,
-            xlab="", ylab="",
-            col= heat.colors(100, rev = TRUE)[5:100]
-      )
-      axis(1, at= 1:sum(keep), labels=enzN(kell), las=2)
-      axis(2, at= 1:sum(keep), labels=enzN(kell), las=1)
-      text(rep(1:sum(keep), length(1:sum(keep))), rep(1:sum(keep), each=length(1:sum(keep))), c(pairs), cex=0.5 )
+      rep_table() |> 
+        group_by(type, rev_type) |> 
+        summarise(freq=n()) |> 
+        ggplot(aes(x=as.character(enzN(type, as.text=F)), y= as.character(enzN(rev_type)), fill=freq))+
+        geom_tile()+
+        scale_fill_gradient(name = "Number", low="yellow", high="red")+
+        scale_x_discrete(labels=scales::label_parse())+
+        scale_y_discrete(labels=scales::label_parse())+
+        coord_fixed()+
+        labs(x="Type", y="Type of complementer", 
+             #caption=paste(colnames(typepool), collapse = ",")
+        )+
+        theme_classic()+
+        theme(legend.pos="right")
       
     })
 

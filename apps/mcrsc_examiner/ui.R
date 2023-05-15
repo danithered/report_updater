@@ -13,7 +13,11 @@ shinyUI(fluidPage(
              uiOutput("reports"),
              textOutput("state_data"),
              dataTableOutput("table"),
-             plotlyOutput("plot")
+             tabsetPanel(
+               tabPanel("plot", plotlyOutput("plot")),
+               tabPanel("raster", plotOutput("plot2"))
+             )
+             
       ),
       column(4, style="position:static;background-color:lightblue",
              h4("Cell"),

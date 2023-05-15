@@ -13,7 +13,7 @@ params:
     value: "/home/danielred/data/programs/mcrs_to_scm/OUT/"
   dir:
     label: Path to data dir
-    value: "/home/danielred/data/programs/mcrs_scm/OUT/bubble_start_partest_656/"
+    value: "/home/danielred/data/programs/mcrs_scm/OUT/bubble_fn2_693/"
   ssh:
     label: SSH address in format of user@domain:port
     value: "danielred@193.224.32.1:20343"
@@ -45,6 +45,7 @@ library(scales)
 library(knitr)
 library(dplyr)
 library(plotly)
+library(ssh)
 
 # add_log <- function(x) {
 #   layout(x, #title = 'myplot',
@@ -194,6 +195,7 @@ rm(table_long)
 ```{r Metplot, echo=F, eval=output_refreshed, fig.show='hide'}
 ggplot(table, aes(x=time, y=no_alive, color=replicators))+
    geom_point()+
+   scale_color_gradient(low="yellow", high="red")+
    labs(x="Time [generations]", y="Number of vesicles with an active metabolism")
 ```
 
@@ -215,7 +217,8 @@ rm(table)
 ```{r plot_noA, eval=output_refreshed, fig.show='hide'}
 ggplotly(ggplot( table_A, aes(x=time, y= number, fill=type))+
   geom_area()+
-  coord_cartesian(ylim=c(0, as.numeric(p$par_poolsize) * as.numeric(p$par_splitfrom)))
+  coord_cartesian(ylim=c(0, as.numeric(p$par_poolsize) * as.numeric(p$par_splitfrom)))+
+  labs(x="Time (in generations)", y="Number of replcators with A activities", caption="accumulated areaplot!")
 ) 
 
 rm(table_A)
@@ -251,7 +254,7 @@ if(length(toread) > 0){
 ```
 
 
-```{r load_savefiles, eval=newsave}
+```{r load_savefiles, cache.rebuild=newsave}
 if(file.exists(savedpath) & !params$force) {
   savedata <- readRDS(savedpath)
 } else {
@@ -316,5 +319,12 @@ ddd = ddd |> group_by(source) |> mutate(freq=n/sum(n))
 ggplot(ddd)+
   geom_raster(aes(x=source, y=sA, fill=freq))+
   labs(x="time", y="simple types")
+```
+
+```{r}
+ggplot(ddd)+
+  geom_line(aes(x=source, y=freq, color=sA))+
+  labs(x="Time (in generations)", y="Frequency")#+
+  #scale_color_continuous("Simple types")
 ```
 
