@@ -161,6 +161,17 @@ shinyServer(function(input, output) {
                             footer = NULL)
                 )
       try({
+        message("update initiated with following parameters:",
+                        "\n\tinput= '", paste0("reports/", job$report),
+                        "',\n\t params$dir = '", job$path, 
+                        "',\n\t params$ssh = '", job$ssh,
+                        "',\n\t params$ssh_key = '", job$ssh_key,
+                        "',\n\t params$force = ", F,
+                        ",\n\t params$cache.path = '", wheretocache,
+                        "',\n\t output_dir = '", job$targetdir,
+                        "',\n\t knit_root_dir = '", job$targetdir,
+                        "',\n\t intermediates_dir = '", job$targetdir,
+                        "',\n\t output_file = 'index.html'")
         rmarkdown::render(paste0("reports/", job$report),
                         params = list(
                           dir = job$path,

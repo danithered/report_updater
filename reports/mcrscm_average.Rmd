@@ -81,7 +81,7 @@ ssh <- ifelse(nchar(params$ssh)==0, NA, params$ssh)
 
 ```
 
-```{r load_funcs, message=FALSE, cache=TRUE}
+```{r load_funcs, message=FALSE, cache=TRUE, cache.rebuild=params$force}
 source("../functions.R")
 source("../xml.R")
 source("../composition.R")
@@ -149,9 +149,17 @@ table <- xfun::cache_rds({
 ```{r transforming_table}
 table_long <- xfun::cache_rds({
   message("table_long generated")
-  table |> 
+  table_long = table |> 
     select( !starts_with("no_A", ignore.case = F)) |> 
-    pivot_longer(cols= contains("enz") | contains("par"), names_to=c("what", "type"), values_to = "val", names_pattern = "(.*)_(.*)")
+    pivot_longer(cols= contains("enz") | contains("par"), 
+                 names_to=c("what", "type"), 
+                 values_to = "val", 
+                 names_pattern = "(.*)_(.*)")
+  if(nrow(table_long) > 2000000){
+    warning("Too much data (", nrow(table_long), " lines), filtering out!")
+    table_long = table_long[1:nrow(table_long) %% ceiling(nrow(table_long)/limit) == 0,]
+  }
+  table_long
 }, rerun = output_refreshed )
 ```
 
@@ -175,10 +183,6 @@ ggplot(table_long)+
 ## Properties of enzyme types
 
 ```{r plot_everything, eval=output_refreshed, fig.show='hide'}
-if(nrow(table_long) > 2000000){
-  warning("Too much data (", nrow(table_long), " lines), quitting!")
-  knitr::knit_exit()
-}
 ggplotly(ggplot(table_long, aes(x=time, y=val))+
   geom_line(aes(color=type))+
   facet_wrap(vars(what), scales = "free_y", ncol=2)#+
@@ -259,7 +263,7 @@ if(file.exists(savedpath) & !params$force) {
   savedata <- readRDS(savedpath)
 } else {
   savedata <- list()
-  savedata$mosaic <- data.frame()
+  savedata$mosaic <- data.frame(source=character(), sA=character())
 }
 
 for(savefile in toread){
@@ -301,7 +305,7 @@ saveRDS(savedata, savedpath)
 
 #sAcats = c("parazite","PARA/MONO","PARA/POLI","MONO/POLI","MONO/MONO","POLI/POLI")
 
-if(nrow(savedata$mosaic) == 0){
+if(nrow(savedata$mosaic) == 0 | !all(c("sA", "source") %in% colnames(savedata$mosaic)) ){
   warning("new saved data is present, but could not load it! Aborting...")
   knitr::knit_exit()
 }
