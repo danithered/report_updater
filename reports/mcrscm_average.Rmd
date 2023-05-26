@@ -82,6 +82,7 @@ ssh <- ifelse(nchar(params$ssh)==0, NA, params$ssh)
 ```
 
 ```{r load_funcs, message=FALSE, cache=TRUE, cache.rebuild=params$force}
+message(getwd())
 source("../functions.R")
 source("../xml.R")
 source("../composition.R")
@@ -157,22 +158,12 @@ table_long <- xfun::cache_rds({
                  names_pattern = "(.*)_(.*)")
   if(nrow(table_long) > 2000000){
     warning("Too much data (", nrow(table_long), " lines), filtering out!")
-    table_long = table_long[1:nrow(table_long) %% ceiling(nrow(table_long)/limit) == 0,]
+    table_long = table_long[1:nrow(table_long) %% ceiling(nrow(table_long)/2000000) == 0,]
   }
   table_long
 }, rerun = output_refreshed )
 ```
 
-
-```{r transforming_table2}
-table_A <- xfun::cache_rds({
-  message("table_A generated")
-  table |> 
-    select( time:sd_M, starts_with("no_A", ignore.case = F)) |>
-    pivot_longer(cols=starts_with("no_A", ignore.case = F), names_to= "type", values_to = "number", names_prefix = "no_")
-}, rerun = output_refreshed)
-
-```
 
 ```{r, eval=F}
 ggplot(table_long)+
@@ -212,13 +203,27 @@ ggplotly(ggplot(table, aes(x=time, y=mean_M ))+
   geom_ribbon(aes(ymin=mean_M - sd_M/divide, ymax=mean_M + sd_M/divide), fill="grey")+
   geom_line()
 ) 
-
-rm(table)
 ```
 
 ## Relicators by promiscuity levels
 
+```{r transforming_table2}
+table_A <- xfun::cache_rds({
+  message("table_A generated")
+  table_A = table |> 
+    select( time:sd_M, starts_with("no_A", ignore.case = F)) |>
+    pivot_longer(cols=starts_with("no_A", ignore.case = F), names_to= "type", values_to = "number", names_prefix = "no_")
+  if(nrow(table_A) > 1500000){
+    warning("Too much data (", nrow(table_A), " lines), filtering out!")
+    table_A = table_A[1:nrow(table_A) %% ceiling(nrow(table_A)/1500000) == 0,]
+  }
+  table_A
+}, rerun = output_refreshed)
+
+```
+
 ```{r plot_noA, eval=output_refreshed, fig.show='hide'}
+rm(table)
 ggplotly(ggplot( table_A, aes(x=time, y= number, fill=type))+
   geom_area()+
   coord_cartesian(ylim=c(0, as.numeric(p$par_poolsize) * as.numeric(p$par_splitfrom)))+
