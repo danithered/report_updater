@@ -10,19 +10,19 @@ output:
 params:
   cache.path:
     label: Set path of cache folder
-    value: "/home/danielred/data/programs/mcrs_to_scm/OUT/"
+    value: "/home/danielred/data/programs/report_updater/reports2/"
   dir:
     label: Path to data dir
-    value: "/home/danielred/data/programs/mcrs_scm/OUT/bubble_fn2_693/"
+    value: "/home/danielred/data/programs/mcrs_to_scm/OUT/bubble_upd3test_25/"
   ssh:
     label: SSH address in format of user@domain:port
-    value: "danielred@193.224.32.1:20343"
+    value: ""
   ssh_key:
     label: Location of ssh public key
     value: ~/.ssh/id_rsa
   force:
     label: To force the document to regenerate all its plots
-    value: FALSE
+    value: TRUE
 editor_options: 
   chunk_output_type: console
 ---
@@ -165,19 +165,41 @@ table_long <- xfun::cache_rds({
 ```
 
 
-```{r, eval=F}
+```{r, eval=T}
 ggplot(table_long)+
   geom_line(aes(x=time, y=no_last_splits))
+```
+
+```{r, eval=T}
+ggplot(table_long)+
+  geom_line(aes(x=time, y=percent_replicated))
+```
+
+```{r, eval=T}
+ggplot(table_long)+
+  geom_line(aes(x=time, y=percent_died))
 ```
 
 
 ## Properties of enzyme types
 
 ```{r plot_everything, eval=output_refreshed, fig.show='hide'}
-ggplotly(ggplot(table_long, aes(x=time, y=val))+
-  geom_line(aes(color=type))+
-  facet_wrap(vars(what), scales = "free_y", ncol=2)#+
-  #labs(caption = Sys.time())
+# table_long$what <- factor(table_long$what, 
+#        levels = c("no",  "mean_R", "mean_length", "mean_mfe", "mean_a"), 
+#        labels=c("Number of replicators",  "Mean replication rate", "Mean length [bases]", "Mean Gibbs free-energy", "Mean activity") )
+# 
+# table_long$type <- factor(table_long$type, 
+#        levels = c(paste0("enz", 1:p$par_noEA-1), "par"), 
+#        labels =c(1:p$par_noEA, "parazite") )
+
+ggplotly(
+  ggplot(table_long, aes(x=time, y=val))+
+    geom_line(aes(color=type))+
+    facet_wrap(vars(what), scales = "free_y", ncol=2)+
+    labs(x = "Time [generations]", y=""
+         #, caption = Sys.time()
+        )+
+    scale_color_discrete("Activity")
 )
 
 rm(table_long)
@@ -302,7 +324,7 @@ saveRDS(opened, openedpath)
 saveRDS(savedata, savedpath)
 ```
 
-```{r plot_mosaic_n, cache.rebuild=newsave, message=FALSE}
+```{r data_checking, cache.rebuild=newsave, message=FALSE}
 # dd$sA <- sapply(as.numeric(dd$type), function(x) {
 #   types <- burstComposit(x)
 #   paste(type2sA(types), collapse = "/")
@@ -314,11 +336,17 @@ if(nrow(savedata$mosaic) == 0 | !all(c("sA", "source") %in% colnames(savedata$mo
   warning("new saved data is present, but could not load it! Aborting...")
   knitr::knit_exit()
 }
+```
 
-ddd = savedata$mosaic |> group_by(source, sA) |> summarise(n=sum(n))
-ggplot(ddd)+
-  geom_raster(aes(x=source, y=sA, fill=n))+
-  labs(x="time", y="simple types")
+
+```{r plot_mosaic_n, cache.rebuild=newsave, message=FALSE}
+tryCatch({
+  ddd = savedata$mosaic |> group_by(source, sA) |> summarise(n=sum(n))
+  ggplot(ddd)+
+    geom_raster(aes(x=source, y=sA, fill=n))+
+    labs(x="time", y="simple types")
+  }, error = function(e) knitr::knit_exit())
+
 ```
 
 

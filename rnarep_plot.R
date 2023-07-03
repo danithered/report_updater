@@ -14,7 +14,10 @@ addToPlot <- function(x=0, y=0, coords,
                       main_con=NA, side_con=NA, 
                       add_letter=F, cex_letter=par("cex"), col_letter="black", col=NULL,
                       ...){
+  orig_bg = par("bg")
   par(bg="transparent")
+  cat("rot is ",rot, "\n")
+  try({
   #rotate
   if(!is.na(rot)){
     midx <- mean(coords$x)
@@ -106,9 +109,12 @@ addToPlot <- function(x=0, y=0, coords,
   if(nrow(lett) > 0) {
     text(lett$x, lett$y, labels=lett$seq, cex=cex_letter, col=col_letter)
   }
-  
+  })
   #return(coords)
+  
+  par(bg=orig_bg)
 }
+
 plot_RNA <- function(coords, ...){
   plot.new()
   plot.window(asp=1, xlim=c(0,1), ylim=c(0,1), xpd=NA)
@@ -134,8 +140,8 @@ find_activity <- function(repl, coords, rules){
   startofPattern <- list()
   for(rule in rules){
     where <- gregexpr(rule$str, repl$str, fixed=T)
-    if(where[[1]] > -1){ #it has this activity
-      for(w in where){ #check every possible location
+    if(where[[1]][1] > -1){ #it has this activity
+      for(w in where[[1]]){ #check every possible location
         #check subrules
         found = c()
         for(sr in rule$subrules){
@@ -197,4 +203,102 @@ make.colormask <- function(str, patterns=list(), col=NA, col.pattern=list(), col
     basemask <- mask_overlap(basemask, mask)
   }
   return(basemask)
+}
+
+
+readRules <- function(dir){
+  setwd(dir)
+  
+  rules <- list()
+  ids = dir(dir)[!is.na(as.numeric(( dir(dir))))]
+  ids = ids[order(as.numeric(ids))]
+  
+  for(id in ids){
+    rule <- readLines(mergepath(dir, id, "str.txt"))
+    subs <- grep(".", rule, fixed=T)
+    
+    for(sub in 1:length(subs) ){
+      subr <- list(str = rule[subs[sub]], subrules = list(), activity = as.numeric(id))
+      start = (subs[sub]+1)
+      end = ifelse(sub<length(subs), subs[sub+1]-1, length(rule))
+      for(b in start:end ) {
+        sp <- strsplit(rule[[b]], " ")[[1]]
+        subr$subrules[[length(subr$subrules)+1]] <- list(locus = as.numeric(sp[1]), base = sp[2])
+      }
+      rules[[length(rules)+1]] <- subr
+    }
+  }
+  
+  return(rules)
+}
+
+quick_plot_RNA <- function(seq, str, rules, A, pcols=c("red", "coral"), actcols = brewer.pal(A, "Set1"), ...){
+  if(is.character(rules)) rules = readRules(rules)
+  
+  col.pattern = list()
+  for(col in actcols) {
+    col.pattern[[length(col.pattern)+1]] <- pcols
+  }
+  
+  coords= ct2coord( makeCt( str, seq) )
+  startofPatterns <- find_activity(list(seq=seq,str=str), coords, rules)
+  
+  colormask <- make.colormask(str, 
+                              patterns =startofPatterns, 
+                              col=NA, 
+                              col.pattern = col.pattern, 
+                              col.base = actcols
+  )
+  
+  plot_RNA(coords,
+           border="lightblue",
+           #bases
+           add_letter = T,
+           cex_letter = 0.6,
+           col_letter = "black",
+           #fill
+           col=colormask,
+           #rotate it
+           #rot=pi/2,
+           #connecting lines
+           main_con = list(lwd=1, col="darkgrey", lty=1),
+           side_con = list(lwd=0.5, col="purple", lty=2),
+           ...
+  )
+}
+
+quick_add_RNA <- function(x, y, seq, str, rules, A, 
+                          pcols=c("red", "coral"), 
+                          actcols = brewer.pal(A, "Set1"), 
+                          xspan = 1, border="lightblue",
+                          add_letter = T,
+                          cex_letter = 0.6,
+                          col_letter = "black",
+                          main_con = list(lwd=1, col="darkgrey", lty=1),
+                          side_con = list(lwd=0.5, col="purple", lty=2),
+                          ...){
+  if(is.character(rules)) rules = readRules(rules)
+  
+  col.pattern = list()
+  for(col in actcols) {
+    col.pattern[[length(col.pattern)+1]] <- pcols
+  }
+  
+  coords= ct2coord( makeCt( str, seq) )
+  startofPatterns <- find_activity(list(seq=seq,str=str), coords, rules)
+  
+  colormask <- make.colormask(str, 
+                              patterns =startofPatterns, 
+                              col=NA, 
+                              col.pattern = col.pattern, 
+                              col.base = actcols
+  )
+  addToPlot(x,y,coords, col=colormask,
+            xspan=xspan, border=border,
+            add_letter=add_letter,
+            cex_letter=cex_letter,
+            col_letter=col_letter,
+            main_con=main_con,
+            side_con=side_con,
+            ...)
 }
