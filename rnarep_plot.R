@@ -16,7 +16,7 @@ addToPlot <- function(x=0, y=0, coords,
                       ...){
   orig_bg = par("bg")
   par(bg="transparent")
-  cat("rot is ",rot, "\n")
+  #cat("rot is ",rot, "\n")
   try({
   #rotate
   if(!is.na(rot)){
@@ -185,13 +185,14 @@ masking <- function(str, n, col){
   mask[n] <- basecol(str, n, col)
   return(mask)
 }
-mask_overlap <- function(mask1, mask2){
+mask_overlap <- function(mask1, mask2, over="orange"){
   vals2 = !is.na(mask2)
   overlap = !is.na(mask1) & vals2
   mask1[vals2] <- mask2[vals2]
-  mask1[overlap] <- "orange"
+  if(!is.na(over)) mask1[overlap] <- over
   return(mask1)
 }
+
 make.colormask <- function(str, patterns=list(), col=NA, col.pattern=list(), col.base=c()){
   #browser()
   length = nchar(str)
@@ -200,7 +201,7 @@ make.colormask <- function(str, patterns=list(), col=NA, col.pattern=list(), col
     if(length(col.pattern) < pattern$activity) mask <- rep(NA, length)
     else mask <- masking(str, seq(pattern$start, length.out=pattern$length), col.pattern[[pattern$activity]])
     if(length(col.base) >= pattern$activity) mask[pattern$matches] <- col.base[pattern$activity]
-    basemask <- mask_overlap(basemask, mask)
+    basemask <- mask_overlap(basemask, mask, over=NA)
   }
   return(basemask)
 }
@@ -267,8 +268,9 @@ quick_plot_RNA <- function(seq, str, rules, A, pcols=c("red", "coral"), actcols 
   )
 }
 
-quick_add_RNA <- function(x, y, seq, str, rules, A, 
+quick_RNA <- function(x, y, seq, str, rules, A, 
                           pcols=c("red", "coral"), 
+                          ncols=NA,
                           actcols = brewer.pal(A, "Set1"), 
                           xspan = 1, border="lightblue",
                           add_letter = T,
@@ -276,6 +278,7 @@ quick_add_RNA <- function(x, y, seq, str, rules, A,
                           col_letter = "black",
                           main_con = list(lwd=1, col="darkgrey", lty=1),
                           side_con = list(lwd=0.5, col="purple", lty=2),
+                          add=F,
                           ...){
   if(is.character(rules)) rules = readRules(rules)
   
@@ -289,11 +292,13 @@ quick_add_RNA <- function(x, y, seq, str, rules, A,
   
   colormask <- make.colormask(str, 
                               patterns =startofPatterns, 
-                              col=NA, 
+                              col=ncols, 
                               col.pattern = col.pattern, 
                               col.base = actcols
   )
-  addToPlot(x,y,coords, col=colormask,
+  
+  if(add){
+    addToPlot(x,y,coords, col=colormask,
             xspan=xspan, border=border,
             add_letter=add_letter,
             cex_letter=cex_letter,
@@ -301,4 +306,15 @@ quick_add_RNA <- function(x, y, seq, str, rules, A,
             main_con=main_con,
             side_con=side_con,
             ...)
+  } else {
+    plot_RNA(coords, col=colormask,
+             xspan=xspan, border=border,
+             add_letter=add_letter,
+             cex_letter=cex_letter,
+             col_letter=col_letter,
+             main_con=main_con,
+             side_con=side_con,
+             ...
+    )
+  }
 }
