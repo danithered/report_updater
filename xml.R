@@ -1,4 +1,4 @@
-library(xml2)
+if(!require(xml2)) {install.packages("xml2"); library(xml2)}
 
 get_child <- function(node, name, as = NA){
   w <- which(name == xml_name(xml_children(node)))

@@ -10,13 +10,13 @@ output:
 params:
   cache.path:
     label: Set path of cache folder
-    value: "/home/danielred/data/programs/report_updater/reports2/"
+    value: "/home/danielred/data/programs/report_updater/reports3/"
   dir:
     label: Path to data dir
-    value: "/home/danielred/data/programs/mcrs_to_scm/OUT/bubble_upd3test_25/"
+    value: "/home/danielred/data/programs/mcrs_scm/OUT/bubble_upd4test4_80_230/"
   ssh:
     label: SSH address in format of user@domain:port
-    value: ""
+    value: "danielred@10.30.0.14"
   ssh_key:
     label: Location of ssh public key
     value: ~/.ssh/id_rsa
@@ -37,15 +37,17 @@ message("\ncache.path: ", params$cache.path,
 knitr::opts_chunk$set(echo = F, cache.path=params$cache.path, cache.lazy = FALSE )
 
 # libraries
-library(RColorBrewer)
-library(ggplot2)
-library(tidyr)
-library(lattice)
-library(scales)
-library(knitr)
-library(dplyr)
-library(plotly)
-library(ssh)
+if(!require(RColorBrewer)){install.packages("RColorBrewer"); library(RColorBrewer)}
+if(!require(ggplot2)){install.packages("ggplot2"); library(ggplot2)}
+if(!require(tidyr)){install.packages("tidyr"); library(tidyr)}
+if(!require(lattice)){install.packages("lattice"); library(lattice)}
+if(!require(scales)){install.packages("scales"); library(scales)}
+if(!require(knitr)){install.packages("knitr"); library(knitr)}
+if(!require(dplyr)){install.packages("dplyr"); library(dplyr)}
+if(!require(plotly)){install.packages("plotly"); library(plotly)}
+if(!require(ssh)){install.packages("ssh"); library(ssh)}
+if(!require(cowplot)){install.packages("cowplot"); library(cowplot)}
+
 
 # add_log <- function(x) {
 #   layout(x, #title = 'myplot',
@@ -105,6 +107,7 @@ pf <- get_file("parameters.txt", mergepath(params$dir, "SAVE/"), ssh=ssh, ssh_ke
     p <- as.list(as.character(t$V2))
     names(p) <- t$V1
   }
+#browser()
 ```
 
 
@@ -184,13 +187,13 @@ ggplot(table_long)+
 ## Properties of enzyme types
 
 ```{r plot_everything, eval=output_refreshed, fig.show='hide'}
-# table_long$what <- factor(table_long$what, 
-#        levels = c("no",  "mean_R", "mean_length", "mean_mfe", "mean_a"), 
-#        labels=c("Number of replicators",  "Mean replication rate", "Mean length [bases]", "Mean Gibbs free-energy", "Mean activity") )
-# 
-# table_long$type <- factor(table_long$type, 
-#        levels = c(paste0("enz", 1:p$par_noEA-1), "par"), 
-#        labels =c(1:p$par_noEA, "parazite") )
+table_long$what <- factor(table_long$what,
+       levels = c("no",  "mean_R", "mean_length", "mean_mfe", "mean_a"),
+       labels=c("Number of replicators",  "Mean replication rate", "Mean length [bases]", "Mean Gibbs free-energy", "Mean activity") )
+
+table_long$type <- factor(table_long$type,
+       levels = c(paste0("enz", 1:p$par_noEA-1), "par"),
+       labels =c(1:p$par_noEA, "parazite") )
 
 ggplotly(
   ggplot(table_long, aes(x=time, y=val))+
@@ -201,8 +204,25 @@ ggplotly(
         )+
     scale_color_discrete("Activity")
 )
+```
+
+
+```{r plotgen_p1, eval=output_refreshed, fig.show='hide'}
+table_long <- table_long[table_long$what %in% c("Mean length [bases]", "Mean Gibbs free-energy", "Mean activity", "Mean replication rate"),c("time", "what", "val", "type")]
+
+p1 <-  ggplot(table_long, aes(x=time, y=val))+
+    geom_line(aes(color=type))+
+    facet_wrap(vars(what), scales = "free_y", ncol=1)+
+    labs(x = "Time [generations]", y=""
+         #, caption = Sys.time()
+    )+
+    scale_color_discrete("Activity")+
+    theme(legend.position = "none", legend.direction = "horizontal", 
+          axis.title.x = element_blank(), axis.ticks.x = element_blank(), axis.text.x = element_blank(),
+          plot.margin = unit(c(0.5,0.5,0,0.5), "cm"))
 
 rm(table_long)
+
 ```
 
 ![](`r knitr::fig_chunk('plot_everything', 'png')`)
@@ -250,7 +270,37 @@ ggplotly(ggplot( table_A, aes(x=time, y= number, fill=type))+
   geom_area()+
   coord_cartesian(ylim=c(0, as.numeric(p$par_poolsize) * as.numeric(p$par_splitfrom)))+
   labs(x="Time (in generations)", y="Number of replcators with A activities", caption="accumulated areaplot!")
-) 
+)
+```
+
+
+```{r plot_noA, eval=output_refreshed, fig.show='hide'}
+
+cols <- c("white",
+          scales::seq_gradient_pal("yellow", "red", "Lab")(seq(0,1,length.out=as.numeric(p$par_noEA))))
+
+p2 <- 
+  ggplot( table_A, aes(x=time, y= number, fill=type))+
+  geom_area(position = "fill")+
+  facet_wrap(vars("Relative frequency of promiscous replicators"))+
+  scale_y_continuous(labels = scales::percent_format())+
+  scale_fill_manual("Replicator type", values=cols)+
+  #coord_cartesian(ylim=c(0, as.numeric(p$par_poolsize) * as.numeric(p$par_splitfrom)))+
+  labs(x="Time (in generations)", y="Number of replcators with A activities", 
+       #caption="accumulated areaplot!"
+       )+
+  theme(legend.position = "none", axis.title.y = element_blank(),
+        plot.margin = unit(c(0.1,0.5,0.5,0.5), "cm"))
+
+leg1 <- get_legend(p1+
+                     guides(color = guide_legend(nrow = 2)) +
+                     theme(legend.position = "bottom"))
+leg2 <- get_legend(p2+
+                     guides(color = guide_legend(nrow = 1)) +
+                     theme(legend.position = "bottom"))
+
+plot_grid(plot_grid(leg1, leg2, ncol=2), p1, p2, ncol=1, rel_heights = c(0.5, 4, 1.3), align="v")
+
 
 rm(table_A)
 ```

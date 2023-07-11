@@ -1,5 +1,6 @@
 source("functions.R")
 force = F
+maxupd = 10
 
 #setwd("/home/danielred/data/programs/report_updater/")
 wheretolook <- read.table("imports.tsv", sep="\t", header=T) 
@@ -88,6 +89,7 @@ for(jr in 1:nrow(jobs)){
                         output_file = "index.html")
       jobs[jr, "updated"] = Sys.time()
       saveRDS(list(sources = wheretolook, jobs = jobs, params = datas, last_updated = Sys.time()), "data.Rds")
+      if(maxupd > 0) maxupd = maxupd - 1 else break 
     })
   } 
   
