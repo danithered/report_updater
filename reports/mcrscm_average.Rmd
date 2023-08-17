@@ -274,7 +274,7 @@ ggplotly(ggplot( table_A, aes(x=time, y= number, fill=type))+
 ```
 
 
-```{r plot_noA, eval=output_refreshed, fig.show='hide'}
+```{r plot_contplot, eval=output_refreshed, fig.show='hide'}
 
 cols <- c("white",
           scales::seq_gradient_pal("yellow", "red", "Lab")(seq(0,1,length.out=as.numeric(p$par_noEA))))

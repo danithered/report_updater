@@ -115,10 +115,10 @@ addToPlot <- function(x=0, y=0, coords,
   par(bg=orig_bg)
 }
 
-plot_RNA <- function(coords, ...){
+plot_RNA <- function(coords, xspan=1, ...){
   plot.new()
   plot.window(asp=1, xlim=c(0,1), ylim=c(0,1), xpd=NA)
-  addToPlot(0,0,coords, xspan=1, ...)
+  addToPlot(0,0,coords, xspan=xspan, ...)
 }
 plot_acts <- function(a1, a2, col="grey"){
   length =max(length(a1), length(a2)) 
