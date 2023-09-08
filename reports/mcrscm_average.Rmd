@@ -13,7 +13,7 @@ params:
     value: "/home/danielred/data/programs/report_updater/reports3/"
   dir:
     label: Path to data dir
-    value: "/home/danielred/data/programs/mcrs_to_scm/OUT/bubble_upd4test4_80_230"
+    value: "/home/danielred/data/programs/mcrs_to_scm/OUT/A7re_S80_newsave_cont"
   ssh:
     label: SSH address in format of user@domain:port
     value: NA

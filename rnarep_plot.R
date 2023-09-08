@@ -115,10 +115,14 @@ addToPlot <- function(x=0, y=0, coords,
   par(bg=orig_bg)
 }
 
-plot_RNA <- function(coords, xspan=1, ...){
+plot_RNA <- function(coords, x=0, y=0, xspan=1, asp=1, xlim=NULL, ylim=NULL, xpd=NA, main=NULL, sub=NULL, xlab=NULL, ylab=NULL, ...){
   plot.new()
-  plot.window(asp=1, xlim=c(0,1), ylim=c(0,1), xpd=NA)
-  addToPlot(0,0,coords, xspan=xspan, ...)
+  plot.window(asp=asp, 
+              xlim=c(ifelse(is.null(xlim), 0+x, xlim[1]), ifelse(is.null(xlim), 1+x, xlim[2])), 
+              ylim=c(ifelse(is.null(ylim), 0+y, ylim[1]), ifelse(is.null(ylim), 1+y, ylim[2])), 
+              xpd=xpd)
+  title(main=main, sub=sub, ylab=ylab, xlab=xlab)
+  addToPlot(x,y,coords, xspan=xspan, ...)
 }
 plot_acts <- function(a1, a2, col="grey"){
   length =max(length(a1), length(a2)) 
@@ -275,6 +279,7 @@ quick_RNA <- function(x, y, seq, str, rules, A,
                           xspan = 1, border="lightblue",
                           add_letter = T,
                           cex_letter = 0.6,
+                          main=NULL, sub=NULL, xlab=NULL, ylab=NULL,
                           col_letter = "black",
                           main_con = list(lwd=1, col="darkgrey", lty=1),
                           side_con = list(lwd=0.5, col="purple", lty=2),
@@ -307,13 +312,14 @@ quick_RNA <- function(x, y, seq, str, rules, A,
             side_con=side_con,
             ...)
   } else {
-    plot_RNA(coords, col=colormask,
+    plot_RNA(coords, x=ifelse(missing(x), 0, x), y=ifelse(missing(y), 0, y), col=colormask,
              xspan=xspan, border=border,
              add_letter=add_letter,
              cex_letter=cex_letter,
              col_letter=col_letter,
              main_con=main_con,
              side_con=side_con,
+             main=main, sub=sub, xlab=xlab, ylab=ylab,
              ...
     )
   }
