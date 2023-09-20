@@ -39,7 +39,7 @@ get_my_data <- function(file, path="", ssh=NA, ssh_key= "~/.ssh/id_rsa"){
     data <- read_xml(f)
     
     d <- xml_child(data, 1) # mooving to mcrscm
-    
+
     out$time = get_child(d, "time", "int")
     out$size = get_child(d, "sim.size", "int")
     try({
@@ -52,7 +52,7 @@ get_my_data <- function(file, path="", ssh=NA, ssh_key= "~/.ssh/id_rsa"){
     out$table = do.call(rbind, lapply(1:xml_length(cells), function(no_cell){
       cell <- xml_child(cells, no_cell)
       
-      out <- as.data.frame(list( alive = get_child(cell, "cell.alive", "logical"),
+      out <- as.data.frame(list( alive = get_child(cell, c("cell.alive", "is_alive"), "logical"),
                                  leftover = get_child(cell, "cell.leftover", "double"),
                                  M = get_child(cell, "metabolism", "double"),
                                  no_reps = get_child(cell, "cell.reps") |> get_child("count", "int")#,
