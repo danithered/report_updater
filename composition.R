@@ -35,6 +35,9 @@ get_my_data <- function(file, path="", ssh=NA, ssh_key= "~/.ssh/id_rsa"){
   
   try({
     f <- get_file(file, path, ssh=ssh, ssh_key=ssh_key, fast=T, to=NA)
+    if(is.na(f)) {
+      warning("File (", file, ") not found", ifelse(is.na(ssh), "", "via SSH connection"), "!")
+    }
     
     data <- read_xml(f)
     
