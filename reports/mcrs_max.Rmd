@@ -887,15 +887,19 @@ try({
     
     #komplementer plot for state
     
-    image(kell, kell,  
-          pairs2, 
+    filt = apply(pairs2,1,sum) > 0 | apply(pairs2,2,sum) > 0
+    
+    kell3=1:sum(filt)
+    
+    image(kell3, kell3,  
+          pairs2[filt,filt], 
           xaxt="n", yaxt="n" ,
           xlab="", ylab="",
           col= heat.colors(100, rev = TRUE)[5:100],
           main = tt, sub= whattosee
     )
-    axis(1, at= kell, labels=enzN(kell2), las=2)
-    axis(2, at= kell, labels=enzN(kell2), las=1)
+    axis(1, at= kell3, labels=enzN(kell2)[filt], las=2)
+    axis(2, at= kell3, labels=enzN(kell2)[filt], las=1)
     #abline(h= kell+0.5)
     #abline(v= kell+0.5)
     
