@@ -13,10 +13,10 @@ params:
     value: "/home/danielred/data/programs/report_updater/reports3/"
   dir:
     label: Path to data dir
-    value: "/home/danielred/data/programs/mcrs_scm/OUT/strangebubbles_4"
+    value: "/home/danielred/data/programs/mcrs_chromosome/OUT/A7v5.1_155"
   ssh:
     label: SSH address in format of user@domain:port
-    value: 148.6.202.2
+    value: danielred@193.224.32.1:20343
   ssh_key:
     label: Location of ssh public key
     value: ~/.ssh/id_rsa
@@ -186,7 +186,7 @@ ggplot(table_long)+
 
 ## Properties of enzyme types
 
-```{r plot_everything, eval=output_refreshed, fig.show='hide'}
+```{r format_table_long, eval=output_refreshed, fig.show='hide'}
 table_long$what <- factor(table_long$what,
        levels = c("no",  "mean_R", "mean_length", "mean_mfe", "mean_a"),
        labels=c("Number of replicators",  "Mean replication rate", "Mean length [bases]", "Mean Gibbs free-energy", "Mean activity") )
@@ -204,8 +204,10 @@ if(nrow(nulls) > 0){
     table_long = table_long[!(table_long$time == nulls[nr,]$time & table_long$type == nulls[nr,]$type &table_long$generalist == nulls[nr,]$generalist), ]
   }
 }
+```
 
 
+```{r plot_everything, eval=output_refreshed, fig.show='hide'}
 #ggplotly(
   ggplot(table_long, aes(x=time, y=val))+
     geom_line(aes(color=type, linetype=generalist))+
@@ -278,8 +280,12 @@ table_A <- xfun::cache_rds({
 
 ```
 
-```{r plot_noA, eval=output_refreshed, fig.show='hide'}
+```{r remove_table, eval=output_refreshed, fig.show='hide'}
 rm(table)
+```
+
+
+```{r plot_noA, eval=output_refreshed, fig.show='hide'}
 ggplotly(ggplot( table_A, aes(x=time, y= number, fill=type))+
   geom_area()+
   coord_cartesian(ylim=c(0, as.numeric(p$par_poolsize) * as.numeric(p$par_splitfrom)))+

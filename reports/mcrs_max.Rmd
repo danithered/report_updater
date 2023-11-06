@@ -13,10 +13,10 @@ params:
     value: report_cache/
   dir:
     label: Path to data dir
-    value: "/home/danielred/data/programs/mcrs_chromosome/OUT/A7re_newout.1_1"
+    value: "/home/danielred/data/programs/mcrs_chromosome/OUT/A7v5.3_72"
   ssh:
     label: SSH address in format of user@domain:port
-    value: ""
+    value: NA
   ssh_key:
     label: Location of ssh public key
     value: ~/.ssh/id_rsa
