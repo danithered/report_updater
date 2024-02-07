@@ -13,7 +13,7 @@ params:
     value: report_cache/
   dir:
     label: Path to data dir
-    value: "/home/danielred/data/programs/mcrs_chromosome/OUT/A7.1_22"
+    value: "/home/danielred/data/programs/mcrs_chromosome/OUT/A7v5.3_72/"
   ssh:
     label: SSH address in format of user@domain:port
     value: ""
@@ -917,6 +917,54 @@ try({
   })
 dev.off()
 ```
+
+
+```{r, eval=F}
+## this one makes in like easy mode, but it filters out nonexistent species
+
+filt = (apply(pairs, 1, sum) + apply(pairs, 2, sum)) > 0
+
+pairs3 <- pairs[filt, filt]
+
+kell3 <- order(type2A(as.numeric(colnames(pairs3))))
+
+pairs3 <- pairs3[kell3,]
+pairs3 <- pairs3[,kell3]
+
+colnums <- 1:ncol(pairs3)
+
+image(1:nrow(pairs3), colnums, 
+      pairs3, 
+      xaxt="n", yaxt="n" ,
+      xlab="", ylab="",
+      col= heat.colors(100, rev = TRUE)[5:100],
+      main = tt, sub= whattosee
+)
+axis(1, at= colnums, labels=enzN(as.numeric(colnames(pairs3))), las=2)
+axis(2, at= 1:nrow(pairs3), labels=enzN(as.numeric(rownames(pairs3))), las=1)
+#abline(h= kell+0.5)
+#abline(v= kell+0.5)
+
+
+## x-axis is the "forward" replicators, aka the replicators that are on the grid, while y-axis is the hypothetical complementers
+
+image(1:nrow(pairs3), colnums, 
+      log(pairs3+1), 
+      asp=1,
+      xaxt="n", yaxt="n" ,
+      xlab="", ylab="",
+      bty="n",
+      col= heat.colors(100, rev = TRUE)[5:100],
+      main = tt, sub= whattosee
+)
+
+text(rep(colnums, length(colnums)), rep(colnums, each=length(colnums)), ifelse(c(pairs3) == 0, "", c(pairs3)), cex=0.5 )
+
+axis(1, at= colnums, labels=enzN(as.numeric(colnames(pairs3))), las=2)
+axis(2, at= 1:nrow(pairs3), labels=enzN(as.numeric(rownames(pairs3))), las=1)
+
+```
+
 
 ```{r maps, eval=F, fig.height=4.5, fig.width=7, message=FALSE, warning=FALSE}
 #check targetdir
