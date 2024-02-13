@@ -13,9 +13,13 @@ addToPlot <- function(x=0, y=0, coords,
                       xspan=1, rot = NA, gap=0.05, 
                       main_con=NA, side_con=NA, 
                       add_letter=F, cex_letter=par("cex"), col_letter="black", col=NULL,
+                      quiet=F, add=T,
+                      # for plotting
+                      asp=1, 
+                      xlim=NULL, ylim=NULL, 
+                      xpd=NA, 
+                      main=NULL, sub=NULL, xlab=NULL, ylab=NULL,
                       ...){
-  orig_bg = par("bg")
-  par(bg="transparent")
   #cat("rot is ",rot, "\n")
   try({
   #rotate
@@ -50,6 +54,23 @@ addToPlot <- function(x=0, y=0, coords,
   coords$x <- x + coords$x
   coords$y <- y + coords$y
   
+  
+  
+  if(!quiet){
+    ## make it a frame if needed
+    if(!add){
+      makeFrame(coords=coords, x=x, y=y, 
+                asp=asp, 
+                xlim=xlim, ylim=ylim, 
+                xpd=xpd, 
+                main=main, sub=sub, xlab=xlab, ylab=ylab)
+    }
+    
+    ## set bg
+    orig_bg = par("bg")
+    par(bg="transparent")
+  } 
+  
   #connector lines
   ## MAIN_CON
   if(!is.list(main_con)) if(!is.na(main_con)){
@@ -60,7 +81,7 @@ addToPlot <- function(x=0, y=0, coords,
     }
   }
   
-  if(is.list(main_con)) with(main_con, {
+  if(!quiet & is.list(main_con)) with(main_con, {
     #points(coords$x, coords$y, type="c", col=col, lwd=lwd, lty=lty)
     segments(coords[1:(nrow(coords)-1),"x"], 
              coords[1:(nrow(coords)-1),"y"], 
@@ -86,7 +107,7 @@ addToPlot <- function(x=0, y=0, coords,
           y1=coords[coords[base, "bound"], "y"]  ))
       }
     }
-    segments(segs$x0, segs$y0, segs$x1, segs$y1, lwd=lwd, col=col, lty=lty)
+    if(!quiet) segments(segs$x0, segs$y0, segs$x1, segs$y1, lwd=lwd, col=col, lty=lty)
     
   })
   
@@ -100,30 +121,46 @@ addToPlot <- function(x=0, y=0, coords,
   } else {
     cols <- col
   }
-  for(ci in 1:nrow(coords) ) draw.circle(coords$x[ci], coords$y[ci],
+  if(!quiet) for(ci in 1:nrow(coords) ) draw.circle(coords$x[ci], coords$y[ci],
                                          radius = scaling* (1/2-gap), nrow(coords),
                                          col=cols[ci],
                                          ...)
   #add letter
   lett <- coords[add_letter, ]
-  if(nrow(lett) > 0) {
+  if(!quiet & nrow(lett) > 0) {
     text(lett$x, lett$y, labels=lett$seq, cex=cex_letter, col=col_letter)
   }
   })
-  #return(coords)
   
-  par(bg=orig_bg)
+  if(!quiet) par(bg=orig_bg)
+  
+  return(list(xlim=range(coords$x), ylim=range(coords$y), cex=cex_letter))
 }
 
-plot_RNA <- function(coords, x=0, y=0, xspan=1, asp=1, xlim=NULL, ylim=NULL, xpd=NA, main=NULL, sub=NULL, xlab=NULL, ylab=NULL, ...){
-  plot.new()
-  plot.window(asp=asp, 
-              xlim=c(ifelse(is.null(xlim), 0+x, xlim[1]), ifelse(is.null(xlim), 1+x, xlim[2])), 
-              ylim=c(ifelse(is.null(ylim), 0+y, ylim[1]), ifelse(is.null(ylim), 1+y, ylim[2])), 
-              xpd=xpd)
-  title(main=main, sub=sub, ylab=ylab, xlab=xlab)
-  addToPlot(x,y,coords, xspan=xspan, ...)
+# deprecated
+plot_RNA <- function(coords, x=0, y=0, xspan=1, asp=1, xlim=NULL, ylim=NULL, xpd=NA, main=NULL, sub=NULL, xlab=NULL, ylab=NULL, quiet=F, ...){
+  if(!quiet){
+    plot.new()
+    plot.window(asp=asp, 
+                xlim=c(ifelse(is.null(xlim), 0+x, xlim[1]), ifelse(is.null(xlim), 1+x, xlim[2])), 
+                ylim=c(ifelse(is.null(ylim), 0+y, ylim[1]), ifelse(is.null(ylim), 1+y, ylim[2])), 
+                xpd=xpd)
+    title(main=main, sub=sub, ylab=ylab, xlab=xlab)
+  }
+  addToPlot(x,y,coords, xspan=xspan, quiet=quiet, ...)
 }
+
+makeFrame <- function(coords, x=0, y=0, asp=1, xlim=NULL, ylim=NULL, xpd=NA, main=NULL, sub=NULL, xlab=NULL, ylab=NULL){
+    plot.new()
+    plot.window(asp=asp, 
+                xlim=c(ifelse(is.null(xlim), min(coords$x), xlim[1]), 
+                       ifelse(is.null(xlim), max(coords$x), xlim[2])), 
+                ylim=c(ifelse(is.null(ylim), min(coords$y), ylim[1]), 
+                       ifelse(is.null(ylim), max(coords$y), ylim[2])), 
+                xpd=xpd)
+    title(main=main, sub=sub, ylab=ylab, xlab=xlab)
+}
+
 plot_acts <- function(a1, a2, col="grey"){
   length =max(length(a1), length(a2)) 
   if(length(a1) < length) a1 <- c(unlist(a1), rep(0, length-length(a1)))
@@ -273,9 +310,9 @@ quick_plot_RNA <- function(seq, str, rules, A, pcols=c("red", "coral"), actcols 
 }
 
 quick_RNA <- function(x, y, seq, str, rules, A, 
+                          actcols, 
                           pcols=c("red", "coral"), 
-                          ncols=NA,
-                          actcols = brewer.pal(A, "Set1"), 
+                          ncols=NA,    
                           xspan = 1, border="lightblue",
                           add_letter = T,
                           cex_letter = 0.6,
@@ -285,15 +322,31 @@ quick_RNA <- function(x, y, seq, str, rules, A,
                           side_con = list(lwd=0.5, col="purple", lty=2),
                           add=F,
                           ...){
-  if(is.character(rules)) rules = readRules(rules)
-  
-  col.pattern = list()
-  for(col in actcols) {
-    col.pattern[[length(col.pattern)+1]] <- pcols
-  }
-  
+  sink(nullfile())
   coords= ct2coord( makeCt( str, seq) )
-  startofPatterns <- find_activity(list(seq=seq,str=str), coords, rules)
+  sink()
+  
+  if(!missing(rules)){
+    # if rules are in a file
+    if(is.character(rules)) rules = readRules(rules)
+    
+    # if no A given, A= no_rules
+    if(missing(A)) A = length(unique(sapply(rules, function(x) x$activity)))
+    
+    # if no actcols specified, get them
+    if(missing(actcols)) actcols = brewer.pal(A, "Set1")
+    
+    col.pattern = list()
+    for(col in actcols) {
+      col.pattern[[length(col.pattern)+1]] <- pcols
+    }
+    
+    startofPatterns <- find_activity(list(seq=seq,str=str), coords, rules)
+  } else {
+    startofPatterns = NA
+    col.pattern = NA
+    actcols = NA
+  }
   
   colormask <- make.colormask(str, 
                               patterns =startofPatterns, 
@@ -302,25 +355,27 @@ quick_RNA <- function(x, y, seq, str, rules, A,
                               col.base = actcols
   )
   
-  if(add){
-    addToPlot(x,y,coords, col=colormask,
-            xspan=xspan, border=border,
-            add_letter=add_letter,
-            cex_letter=cex_letter,
-            col_letter=col_letter,
-            main_con=main_con,
-            side_con=side_con,
-            ...)
-  } else {
-    plot_RNA(coords, x=ifelse(missing(x), 0, x), y=ifelse(missing(y), 0, y), col=colormask,
-             xspan=xspan, border=border,
-             add_letter=add_letter,
-             cex_letter=cex_letter,
-             col_letter=col_letter,
-             main_con=main_con,
-             side_con=side_con,
-             main=main, sub=sub, xlab=xlab, ylab=ylab,
-             ...
-    )
-  }
+  #if(add){
+    addToPlot(x=ifelse(missing(x), 0, x),y=ifelse(missing(y), 0, y), coords=coords, 
+              col=colormask,
+              xspan=xspan, border=border,
+              add_letter=add_letter,
+              cex_letter=cex_letter,
+              col_letter=col_letter,
+              main_con=main_con,
+              side_con=side_con,
+              add=add,
+              ...)
+  # } else {
+  #   plot_RNA(coords, x=ifelse(missing(x), 0, x), y=ifelse(missing(y), 0, y), col=colormask,
+  #            xspan=xspan, border=border,
+  #            add_letter=add_letter,
+  #            cex_letter=cex_letter,
+  #            col_letter=col_letter,
+  #            main_con=main_con,
+  #            side_con=side_con,
+  #            main=main, sub=sub, xlab=xlab, ylab=ylab,
+  #            ...
+  #   )
+  # }
 }
