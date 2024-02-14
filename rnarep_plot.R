@@ -336,9 +336,13 @@ quick_RNA <- function(x, y, seq, str, rules, A,
     # if no actcols specified, get them
     if(missing(actcols)) actcols = brewer.pal(A, "Set1")
     
-    col.pattern = list()
-    for(col in actcols) {
-      col.pattern[[length(col.pattern)+1]] <- pcols
+    if(is.list(pcols) & length(pcols) == A){
+      col.pattern = pcols
+    } else {
+      col.pattern = list()
+      for(col in actcols) {
+        col.pattern[[length(col.pattern)+1]] <- pcols
+      }
     }
     
     startofPatterns <- find_activity(list(seq=seq,str=str), coords, rules)
@@ -365,6 +369,7 @@ quick_RNA <- function(x, y, seq, str, rules, A,
               main_con=main_con,
               side_con=side_con,
               add=add,
+              main=main, sub=sub, xlab=xlab, ylab=ylab,
               ...)
   # } else {
   #   plot_RNA(coords, x=ifelse(missing(x), 0, x), y=ifelse(missing(y), 0, y), col=colormask,
