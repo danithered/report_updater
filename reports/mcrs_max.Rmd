@@ -903,19 +903,20 @@ try({
     #abline(h= kell+0.5)
     #abline(v= kell+0.5)
     
-    image(kell, kell,  
-          log(pairs2+1), 
+    image(kell3, kell3,  
+          log(pairs2[filt,filt]+1), 
           #pairs2, 
           xaxt="n", yaxt="n" ,
+          asp=1,
           xlab="", ylab="",
           #col= hcl.colors(200, "YlOrRd", rev = TRUE),
           col= heat.colors(100, rev = TRUE)[5:100],
           main = "on a logaritmic scale"
     )
-    text(rep(kell, length(kell)), rep(kell, each=length(kell)), c(pairs2), cex=0.5 )
+    text(rep(kell3, length(kell3)), rep(kell3, each=length(kell3)), c(pairs2[filt,filt]), cex=0.5 )
     
-    axis(1, at= kell, labels=enzN(kell2), las=2)
-    axis(2, at= kell, labels=enzN(kell2), las=1)
+    axis(1, at= kell3, labels=enzN(kell2)[filt], las=2)
+    axis(2, at= kell3, labels=enzN(kell2)[filt], las=1)
     #abline(h= kell+0.5)
     #abline(v= kell+0.5)
   })
