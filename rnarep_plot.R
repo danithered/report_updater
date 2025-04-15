@@ -115,11 +115,13 @@ addToPlot <- function(x=0, y=0, coords,
   par(bg=orig_bg)
 }
 
-plot_RNA <- function(coords, ...){
+plot_RNA <- function(coords, xlim=c(0,1), ylim=c(0,1), xpd=NA, ...){
   plot.new()
-  plot.window(asp=1, xlim=c(0,1), ylim=c(0,1), xpd=NA)
-  addToPlot(0,0,coords, xspan=1, ...)
+  plot.window(asp=1, xlim=xlim, ylim=ylim, xpd=xpd)
+  if(!"xspan" %in% names(list(...))) addToPlot(0,0,coords, xspan=1, ...)
+  addToPlot(0,0,coords, ...)
 }
+
 plot_acts <- function(a1, a2, col="grey"){
   length =max(length(a1), length(a2)) 
   if(length(a1) < length) a1 <- c(unlist(a1), rep(0, length-length(a1)))
@@ -163,23 +165,50 @@ find_activity <- function(repl, coords, rules){
   if(length(startofPattern) == 0) return(NA)
   return(startofPattern)
 }
-basecol <- function(str, n, col){
-  sapply(n, function(n=n, str, col){
-    if(length(col) == 1){
-      return(col)
+# basecol <- function(str, n, col){
+#   sapply(n, function(n=n, str, col){
+#     if(length(col) == 1){
+#       return(col)
+#     }
+#     if(length(col) == 2){
+#       base <- substr(str, n, n)
+#       if(base == "."){
+#         return(col[1])
+#       }
+#       if(base %in% c("(", ")")){
+#         return(col[2])
+#       }
+#     }
+#     return(NA)
+#   }, str=str, col=col)
+# }
+basecol <- function(str, n, col, seq){
+  # if seq is here and col is a map for base colors
+  if(hasArg(seq)){
+    #if(length(col) == 4){
+    if( all(c("A", "U", "G", "C") %in% names(col)) ){
+      seq <- strsplit(seq, "")[[1]]
+      return(col[seq[n]])
     }
-    if(length(col) == 2){
-      base <- substr(str, n, n)
-      if(base == "."){
-        return(col[1])
-      }
-      if(base %in% c("(", ")")){
-        return(col[2])
-      }
-    }
-    return(NA)
-  }, str=str, col=col)
+    #}
+  }
+  
+  # if there is only 1 color
+  if(length(col) == 1){
+    return( rep(col, length(n)) )
+  }
+  
+  # if there are 2 colors - will be based on open-closed state
+  if(length(col) == 2){
+    str <- strsplit(str, "")[[1]]
+    map <- c("."=col[1], "("=col[2], ")"=col[2])
+    
+    return(map[str])
+  }
+  
+  return(NA)
 }
+
 masking <- function(str, n, col){
   mask <- rep(NA, nchar(str))
   mask[n] <- basecol(str, n, col)
@@ -193,10 +222,10 @@ mask_overlap <- function(mask1, mask2, over="orange"){
   return(mask1)
 }
 
-make.colormask <- function(str, patterns=list(), col=NA, col.pattern=list(), col.base=c()){
+make.colormask <- function(str, patterns=list(), col=NA, col.pattern=list(), col.base=c(), seq){
   #browser()
   length = nchar(str)
-  basemask = basecol(str, 1:length, col)
+  basemask = basecol(str, 1:length, col, seq=seq)
   if(!is.na(patterns)[1]) for(pattern in patterns){
     if(length(col.pattern) < pattern$activity) mask <- rep(NA, length)
     else mask <- masking(str, seq(pattern$start, length.out=pattern$length), col.pattern[[pattern$activity]])
@@ -268,10 +297,10 @@ quick_plot_RNA <- function(seq, str, rules, A, pcols=c("red", "coral"), actcols 
   )
 }
 
-quick_RNA <- function(x, y, seq, str, rules, A, 
+quick_RNA <- function(x, y, seq, str, rules=NULL, A=3, 
                           pcols=c("red", "coral"), 
                           ncols=NA,
-                          actcols = brewer.pal(A, "Set1"), 
+                          actcols = RColorBrewer::brewer.pal(A, "Set1"), 
                           xspan = 1, border="lightblue",
                           add_letter = T,
                           cex_letter = 0.6,
@@ -290,13 +319,12 @@ quick_RNA <- function(x, y, seq, str, rules, A,
   coords= ct2coord( makeCt( str, seq) )
   startofPatterns <- find_activity(list(seq=seq,str=str), coords, rules)
   
-  colormask <- make.colormask(str, 
+  colormask <- make.colormask(str, seq=seq,
                               patterns =startofPatterns, 
                               col=ncols, 
                               col.pattern = col.pattern, 
                               col.base = actcols
   )
-  
   if(add){
     addToPlot(x,y,coords, col=colormask,
             xspan=xspan, border=border,
