@@ -1,3 +1,5 @@
+# version in "dissertation" repo is newer!
+
 if(!require(RRNA)){install.packages("RRNA");library(RRNA)}
 if(!require(plotrix)){install.packages("plotrix");library(plotrix)}
 
@@ -182,6 +184,7 @@ find_activity <- function(repl, coords, rules){
 #     return(NA)
 #   }, str=str, col=col)
 # }
+
 basecol <- function(str, n, col, seq){
   # if seq is here and col is a map for base colors
   if(hasArg(seq)){
